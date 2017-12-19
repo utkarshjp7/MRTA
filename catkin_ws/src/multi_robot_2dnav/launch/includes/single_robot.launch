@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<launch>
+    <arg name="base"/>
+    <arg name="stacks"/>
+    <arg name="3d_sensor"/>
+    <arg name="robot_name"/>
+    <arg name="init_pose"/>  
+    
+    <arg name="urdf_file" default="$(find xacro)/xacro.py '$(find turtlebot_description)/robots/$(arg base)_$(arg stacks)_$(arg 3d_sensor).urdf.xacro' robot_id:=$(arg robot_name)" />
+    <param name="/robot_description" command="$(arg urdf_file)" />
+  
+    <!--Spawn Gazebo Model -->
+    <node name="$(arg robot_name)" pkg="gazebo_ros" type="spawn_model"
+        args="$(arg init_pose) -unpause -urdf -param /robot_description -model $(arg robot_name)"/>
+  
+<!-- Velocity muxer -->
+    <node pkg="nodelet" type="nodelet" name="mobile_base_nodelet_manager" args="manager"/>
+    <node pkg="nodelet" type="nodelet" name="cmd_vel_mux" 
+          args="load yocs_cmd_vel_mux/CmdVelMuxNodelet mobile_base_nodelet_manager">
+        <param name="yaml_cfg_file" value="$(find turtlebot_bringup)/param/mux.yaml" />
+        <remap from="cmd_vel_mux/output" to="mobile_base/commands/velocity"/>
+    </node>
+
+    <!-- Fake laser --> 
+    <node pkg="nodelet" type="nodelet" name="laserscan_nodelet_manager" args="manager"/>
+    <node pkg="nodelet" type="nodelet" name="depthimage_to_laserscan"
+        args="load depthimage_to_laserscan/DepthImageToLaserScanNodelet laserscan_nodelet_manager">
+        <param name="scan_height" value="10"/>
+        <param name="output_frame_id" value="$(arg robot_name)/camera_depth_frame"/>
+        <param name="range_min" value="0.45"/>
+        <remap from="image" to="camera/depth/image_raw"/>
+    </node>
+
+    <!--Publish robot tf -->
+    <node pkg="robot_state_publisher" type="robot_state_publisher" name="robot_state_publisher">
+        <param name="publish_frequency" type="double" value="30.0" />
+        <param name="tf_prefix" type="string" value="$(arg robot_name)" />
+     </node>
+
+    <!--Substitute for amcl. This node publishes provides perfect localization-->
+    <node pkg="fake_localization" type="fake_localization" name="fake_localization">
+        <remap from="base_pose_ground_truth" to="odom"/>
+        <param name="odom_frame_id" type="string" value="$(arg robot_name)/odom" />
+        <param name="base_frame_id" type="string" value="$(arg robot_name)/base_link" />
+    </node>
+
+    <!--Costmaps and Move Base -->
+    <include file="$(find multi_robot)/launch/includes/move_base.launch">
+        <remap from="$(arg robot_name)/navigation_velocity_smoother/raw_cmd_vel" to="$(arg robot_name)/cmd_vel_mux/input/teleop"/>
+        <arg name="odom_frame_id"  value="$(arg robot_name)/odom"/>
+        <arg name="base_frame_id"  value="$(arg robot_name)/base_link"/>
+    </include>
+
+</launch>

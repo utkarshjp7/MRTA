@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package>
-  <name>mrta</name>
+  <name>multi_robot_2dnav</name>
   <version>0.0.0</version>
-  <description>The mrta package</description>
+  <description>The multi_robot_2dnav package</description>
 
   <!-- One maintainer tag required, multiple allowed, one person per tag -->
   <!-- Example:  -->
@@ -19,7 +19,7 @@
   <!-- Url tags are optional, but multiple are allowed, one per tag -->
   <!-- Optional attribute type can be: website, bugtracker, or repository -->
   <!-- Example: -->
-  <!-- <url type="website">http://wiki.ros.org/mrta</url> -->
+  <!-- <url type="website">http://wiki.ros.org/multi_robot_2dnav</url> -->
 
 
   <!-- Author tags are optional, multiple are allowed, one per tag -->
