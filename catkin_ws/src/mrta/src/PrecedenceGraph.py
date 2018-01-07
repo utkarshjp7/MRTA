@@ -12,7 +12,7 @@ class Vertex:
         self.children = set()
         self.priority = None
 
-        #veriables for tarjan's algorithm for finding cycles in graph
+        #variables for tarjan's algorithm for finding cycles in graph
         self.tarjan_index = -1
         self.tarjan_low_link = None
 
