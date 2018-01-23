@@ -1,5 +1,3 @@
-#!/usr/bin/python2.7
-
 from numpy import random 
 from Task import Task
 from Robot import Robot
@@ -39,12 +37,12 @@ class DataGenerator:
                     if p_graph.add_edge(from_task, to_task):
                         i += 1
         
+        p_graph.build_graph()
+        p_graph.calc_all_priorities()
         return p_graph
 
-    def generate_robots(self, no_of_robots):
-        robots = []
-        for i in range(no_of_robots):
-            x = random.randint(0, self._map_size[0])
-            y = random.randint(0, self._map_size[1])
-            robots.append(Robot(i, x, y))
-        return robots
+    def generate_robot(self, _id):          
+        x = random.randint(0, self._map_size[0])
+        y = random.randint(0, self._map_size[1])
+        robot = Robot(_id, x, y)
+        return robot

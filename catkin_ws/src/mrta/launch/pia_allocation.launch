@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<launch>
+    <param name="/map_size_x" value="10"/>
+    <param name="/map_size_y" value="10"/>
+    <param name="/robot_count" value="2"/>
+
+    <node name="p_graph_generator" pkg="mrta" type="generate_pgraph.py" output="screen"/>
+
+    <node name="generate_robot1" pkg="mrta" type="generate_robot.py" output="screen" args="1"/>
+    <node name="generate_robot2" pkg="mrta" type="generate_robot.py" output="screen" args="2"/>
+
+    <node name="task_allocator" pkg="mrta" type="allocate_tasks.py" output="screen" />
+</launch>

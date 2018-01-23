@@ -32,7 +32,7 @@ class Vertex:
         return s
 
     def __hash__(self):
-        return hash(self.task)
+        return hash(self.task)        
 
     def connect(self, vertex):               
         self.children.add(vertex)
@@ -51,14 +51,21 @@ class Vertex:
 class PrecedenceGraph:
     
     def __init__(self, task_list):          
-        self._vertices = set([ Vertex(task) for task in task_list ])
+        self._vertices = set([ Vertex(task) for task in task_list ])        
         self._alpha = 0.5
 
         #variables for tarjan's algorithm for finding cycles in graph
         self._tarjan_scc = []
+        self.scheduled_tasks = set()
+        self.first_layer = set()
+        self.second_layer = set()
+        self.hidden_layer = set()
 
     def __iter__(self):        
         return iter(self._vertices)
+
+    def size(self):
+        return len(self._vertices)
 
     def add_vertex(self, task):                        
         self._vertices.add(Vertex(task))
@@ -107,9 +114,47 @@ class PrecedenceGraph:
             return False
         
         return True
+        
+    def calc_all_priorities(self):
+        roots = self.first_layer
 
-    def get_first_layer(self):
-        first_layer = set()
+        for v in roots:
+            self._calc_chain_priority(v)
+
+    def update(self, scheduled_task):
+        pc = {}
+        v = self._get_vertex(scheduled_task)
+        self.first_layer.remove(scheduled_task)
+        self.scheduled_tasks.add(scheduled_task)
+        
+        for c in self.second_layer.intersection(v.children):
+            parents = self._get_parents(c)
+            if parents.issubset(self.scheduled_tasks):
+                self.second_layer.remove(c)
+                self.first_layer.add(c)
+
+                pc[c] = max([ p.finish_time for p in parents ])
+
+                for h in self.hidden_layer.intersection(c.children):
+                    parents = self._get_parents(h)
+                    if parents.issubset(self.scheduled_tasks.union(self.first_layer)):
+                        self.hidden_layer.remove(h)
+                        self.second_layer.add(h)
+
+        return pc
+
+    def update_tasks(self, tasks):
+        for task in tasks:
+            v = self._get_vertex(task)
+            v.task = task
+
+    def build_graph(self):
+        self._update_first_layer()
+        self._update_second_layer()
+        self._update_hidden_layer()
+
+    def _update_first_layer(self):
+        self.first_layer = set()
 
         all_children = set()
         for v in self._vertices:
@@ -117,34 +162,33 @@ class PrecedenceGraph:
 
         for v in self._vertices:
             if v not in all_children:
-                first_layer.add(v)
-        
-        return first_layer
+                self.first_layer.add(v)
 
-    def get_second_layer(self):
-        first_layer = self.get_first_layer()
+    def _update_second_layer(self):
         new_graph = deepcopy(self)
         
-        for v in first_layer:
+        for v in self.first_layer:
             new_graph.remove_vertex(v.task)
             
-        return new_graph.get_first_layer()
+        new_graph._update_first_layer()
 
-    def get_hidden_layer(self):
-        first_two_layers = self.get_first_layer().union(self.get_second_layer())
+        self.second_layer = new_graph.first_layer
+
+    def _update_hidden_layer(self):
+        first_two_layers = self.first_layer.union(self.second_layer)
         new_graph = deepcopy(self) 
 
         for v in first_two_layers:
             new_graph.remove_vertex(v.task)
-
-        return new_graph._vertices       
-
         
-    def calc_all_priorities(self):
-        roots = self.get_first_layer()
+        self.hidden_layer = new_graph._vertices   
 
-        for v in roots:
-            self._calc_chain_priority(v)
+    def _get_parents(self, child):
+        parents = set()
+        for v in self._vertices:
+            if child in v.children:
+                parents.add(v.task)
+        return parents
 
     def _is_valid(self, *tasks):
         #check for duplicates
