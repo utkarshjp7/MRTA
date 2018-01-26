@@ -17,6 +17,7 @@ class Robot:
         self._scheduled_tasks_pub = rospy.Publisher("/scheduled_tasks", ScheduledTasks, queue_size=10)
         self._auction_sub = rospy.Subscriber("/auction", AuctionRequest, self.auction_callback)
         self._winner_sub = rospy.Subscriber("/winner", Winner, self.winner_callback)
+        self._completed_auctions = []
 
         self._t_auc = []
         self._best_task_pos = {}
@@ -25,8 +26,8 @@ class Robot:
         self._tasks_preconditions = {}
     
     def __str__(self):
-        s = str(self.id)
-        s += "Init location:" + str(self.init_pos)
+        s = "id: " + str(self.id)
+        s += ", init location: " + str(self.init_pos)
         return s
     
     def start_listener(self):
@@ -34,21 +35,28 @@ class Robot:
         rospy.spin()
 
     def auction_callback(self, msg):    
-        print "Robot " + str(self.id) + ": Received auction " + str(msg.id)     
+        if msg.id in self._completed_auctions:
+            return  
+
         auc_ack_msg = AuctionAck()
         auc_ack_msg.robot_id = int(self.id)
         auc_ack_msg.auc_id = int(msg.id)        
 
-        print "Robot " + str(self.id) + ": Sending ack for auction " + str(msg.id)
+        #print "Robot " + str(self.id) + ": Sending ack for auction " + str(msg.id)
+        print "Robot " + str(self.id) + ": Received auction " + str(msg.id)  + " with following " + str(len(msg.tasks)) + " tasks."
         self._auc_ack_pub.publish(auc_ack_msg)
 
         self._t_auc = utils.create_tasks(msg.tasks)
+
+        for t in self._t_auc:
+            print str(t)
         
         i = 0
         for task in self._t_auc:
             self._tasks_preconditions[task] = msg.PC[i]
             i += 1
 
+        self._winner_received = True
         while len(self._t_auc) > 0:
 
             min_bid = float("inf")
@@ -76,12 +84,15 @@ class Robot:
                     self._winner_received = False
                 
         tasks = self._tighten_schedule()
+        print "Robot " + str(self.id) + "All tasks from the current auction has been scheduled."
         print "Robot " + str(self.id) + ": Makespan is " + str(self.stn.get_makespan())
+        print "Robot " + str(self.id) + ": Schedule: " + str(self.stn)
         scheduled_tasks_msg = ScheduledTasks()
         scheduled_tasks_msg.robot_id = self.id
         scheduled_tasks_msg.tasks = tasks
         
         self._scheduled_tasks_pub.publish(scheduled_tasks_msg)
+        self._completed_auctions.append(msg.id)
 
     def winner_callback(self, msg):
         print "Robot " + str(self.id) +  ": Winner received"
@@ -90,16 +101,11 @@ class Robot:
         task = utils.create_task(msg.task)
 
         if winner_robot_id == self.id:            
-            print "Robot " + str(self.id) +  ": is the winner"
+            print "Robot " + str(self.id) +  " is the winner"
             self.stn.insert_task(task, self._best_task_pos[task.id])
-            self.stn.solve_stn(self._tasks_preconditions)
-        
-        print "Robot " + str(self.id) + ": T_AUC: "
-        for t in self._t_auc:
-            print str(t)
-            print ""
+            self.stn.solve_stn(self._tasks_preconditions)    
 
-        print "Robot " + str(self.id) + ": Removing task"
+        print "Robot " + str(self.id) + ": Following task has been scheduled."
         print str(task)
         print ""
 

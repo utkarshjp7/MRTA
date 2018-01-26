@@ -133,7 +133,7 @@ class PrecedenceGraph:
                 self.second_layer.remove(c)
                 self.first_layer.add(c)
 
-                pc[c] = max([ p.task.finish_time for p in parents ])
+                pc[c.task] = max([ p.task.finish_time for p in parents ])
 
                 for h in self.hidden_layer.intersection(c.children):
                     parents = self._get_parents(h)
@@ -166,13 +166,15 @@ class PrecedenceGraph:
 
     def _update_second_layer(self):
         new_graph = deepcopy(self)
-
+        
         for node in self.first_layer:
             new_graph.remove_node(node.task)
     
         new_graph._update_first_layer()
 
-        self.second_layer = new_graph.first_layer
+        for node in self._nodes:
+            if node in new_graph.first_layer:
+                self.second_layer.add(node)
 
     def _update_hidden_layer(self):
         first_two_layers = self.first_layer.union(self.second_layer)
@@ -181,7 +183,9 @@ class PrecedenceGraph:
         for node in first_two_layers:
             new_graph.remove_node(node.task)
         
-        self.hidden_layer = new_graph._nodes   
+        for node in self._nodes:
+            if node in new_graph._nodes:
+                self.hidden_layer.add(node)   
 
     def _get_parents(self, child):
         parents = set()

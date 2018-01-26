@@ -26,19 +26,37 @@ class PIA(object):
 
     def start_allocation(self):
         n = self.p_graph.size()
-        ts = self.p_graph.scheduled_nodes
-        tf = self.p_graph.first_layer
-        tl = self.p_graph.second_layer
-        th = self.p_graph.hidden_layer
 
         r = rospy.Rate(1)
 
-        while len(ts) < n :                            
+        while not rospy.is_shutdown() :    
+
+            ts = self.p_graph.scheduled_nodes
+            tf = self.p_graph.first_layer
+            tl = self.p_graph.second_layer
+
+            print ""
+            print str(len(ts)) + " tasks have been scheduled."
+            print "First layer contains " + str(len(tf)) + " tasks."
+            print "Second layer contains " + str(len(tl)) + " tasks."
+            print ""
+
+            if len(ts) >= n:
+                print "All tasks have been allocated."
+                break
+
             c = max([ vertex.priority for vertex in tl ]) if tl else 0
-            t_auct = set([ vertex.task for vertex in tf if vertex.priority > c ])
+            t_auct = set([ vertex.task for vertex in tf if vertex.priority > c ])        
             
-            print "Auction " + str(self._auc_id) + " started"
-            while not ( rospy.is_shutdown() or self._auction_finished ):
+            for v in tf:
+                print "First layer: Task " + str(v.task.id) + " with priority " + str(v.priority)
+
+            for v in tl:
+                print "Second layer: Task " + str(v.task.id) + " with priority " + str(v.priority)
+
+            print "Auction " + str(self._auc_id) + " started with " + str(len(t_auct)) + " tasks."            
+            
+            while not self._auction_finished :
                 if self._all_acks_received:                    
                     continue
                 
@@ -53,10 +71,10 @@ class PIA(object):
                 print "Updating precedence graph"
                 pc = self.p_graph.update(t)
                 for k,v in pc.iteritems():
-                    self._tasks_preconditions[k] = v        
+                    self._tasks_preconditions[k] = v       
             
-            print "Preconditions: " + str(self._tasks_preconditions)
-            break
+            self._auc_id += 1                                     
+            self._auction_finished = False
 
     def create_auction_msg(self, _id, tasks):
         task_msgs = []
@@ -131,7 +149,6 @@ class PIA(object):
         self._winner_pub.publish(winner_msg)
 
     def _reset_params_for_new_auction(self):
-            self._auc_id += 1
             self._auc_acks_flag = { (i+1) : False for i in range(self._robot_count) }
             self._all_acks_received = False
             self._auction_finished = True

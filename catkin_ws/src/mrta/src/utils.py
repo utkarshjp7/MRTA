@@ -4,7 +4,7 @@ from Task import Task
 
 def compute_distance(vecA, vecB):
     vectorAB = np.subtract(vecB, vecA)
-    return np.sqrt(np.dot(vectorAB, vectorAB))    
+    return round(np.sqrt(np.dot(vectorAB, vectorAB)), 4)    
 
 def create_task_msg(task):
     task_msg = Task_Msg()

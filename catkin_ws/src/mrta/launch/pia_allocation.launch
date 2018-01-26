@@ -5,8 +5,6 @@
     <param name="/map_size_y" value="10"/>
     <param name="/robot_count" value="2"/>
 
-    <node name="p_graph_generator" pkg="mrta" type="generate_pgraph.py" output="screen"/>
-
     <node name="generate_robot1" pkg="mrta" type="generate_robot.py" output="screen" args="1"/>
     <node name="generate_robot2" pkg="mrta" type="generate_robot.py" output="screen" args="2"/>
 
