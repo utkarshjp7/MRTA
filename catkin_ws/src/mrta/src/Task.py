@@ -19,12 +19,12 @@ class Task(object):
 
     def __str__(self):
         s = "id: " + str(self.id) + ", "
-     #   s += "est: " + str(self.est) + ", "
-     #   s += "lft: " + str(self.lft) + ", "
-     #   s += "lst: " + str(self.lst) + ", "        
+        s += "est: " + str(self.est) + ", "
+        s += "lft: " + str(self.lft) + ", "             
         s += "start_time: " + str(self.start_time) + ", "
         s += "end_time: " + str(self.finish_time) + ", "
-     #   s += "duration: " + str(self.duration) + "."
+        s += "duration: " + str(self.duration) + ", " 
+        s += "location: " + str(self.location) + "."
         return str(s)
 
     def __hash__(self):

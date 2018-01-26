@@ -8,9 +8,9 @@ class Robot:
 
     def __init__(self, _id, pos_x, pos_y):
         self.init_pos = (pos_x, pos_y)
-        self.id = _id
+        self.id = int(_id)
         self.stn = STN(self.init_pos, 1)
-        self._bid_alpha = 0.5
+        self._bid_alpha = 0.2
         
         self._auc_ack_pub = rospy.Publisher("/auction_ack", AuctionAck, queue_size=10)
         self._bid_pub = rospy.Publisher("/bid", Bid, queue_size=10)
@@ -18,12 +18,14 @@ class Robot:
         self._auction_sub = rospy.Subscriber("/auction", AuctionRequest, self.auction_callback)
         self._winner_sub = rospy.Subscriber("/winner", Winner, self.winner_callback)
 
-        self._t_auc = set()
+        self._t_auc = []
         self._best_task_pos = {}
         self._winner_received = True
+
+        self._tasks_preconditions = {}
     
     def __str__(self):
-        s = self.id
+        s = str(self.id)
         s += "Init location:" + str(self.init_pos)
         return s
     
@@ -31,40 +33,50 @@ class Robot:
         rospy.init_node("robot" + str(self.id))
         rospy.spin()
 
-    def auction_callback(self, msg):        
+    def auction_callback(self, msg):    
+        print "Robot " + str(self.id) + ": Received auction " + str(msg.id)     
         auc_ack_msg = AuctionAck()
         auc_ack_msg.robot_id = int(self.id)
         auc_ack_msg.auc_id = int(msg.id)        
+
+        print "Robot " + str(self.id) + ": Sending ack for auction " + str(msg.id)
         self._auc_ack_pub.publish(auc_ack_msg)
 
-        min_bid = float("inf")
-        min_task = None
-
-        self._t_auc = set(utils.create_tasks(msg.tasks))
-        PC = msg.PC
+        self._t_auc = utils.create_tasks(msg.tasks)
+        
+        i = 0
+        for task in self._t_auc:
+            self._tasks_preconditions[task] = msg.PC[i]
+            i += 1
 
         while len(self._t_auc) > 0:
 
+            min_bid = float("inf")
+            min_task = None
+
             if self._winner_received:
-                i = 0
+                print "Robot " + str(self.id) + ": Finding optimal task"
                 for task in self._t_auc:
-                    bid, best_pos = self._compute_min_bid(task, PC[i])
+                    bid, best_pos = self._compute_min_bid(task)
                     self._best_task_pos[task.id] = best_pos 
                     if bid < min_bid:
                         min_bid = bid
                         min_task = task
-                    i += 1
 
-                bid_msg = Bid()
-                bid_msg.auc_id = msg.id
-                bid_msg.robot_id = self.id
-                bid_msg.task = utils.create_task_msg(min_task)
-                bid_msg.bid = min_bid
+                if min_task is not None:
+                    print "Robot " + str(self.id) +  ": Found optimal task"
+                    bid_msg = Bid()
+                    bid_msg.auc_id = msg.id
+                    bid_msg.robot_id = self.id
+                    bid_msg.task = utils.create_task_msg(min_task)
+                    bid_msg.bid = min_bid
 
-                self._bid_pub.publish(bid_msg)
-                self._winner_received = False
-        
+                    print "Robot " + str(self.id) +  ": Publishing bid"
+                    self._bid_pub.publish(bid_msg)
+                    self._winner_received = False
+                
         tasks = self._tighten_schedule()
+        print "Robot " + str(self.id) + ": Makespan is " + str(self.stn.get_makespan())
         scheduled_tasks_msg = ScheduledTasks()
         scheduled_tasks_msg.robot_id = self.id
         scheduled_tasks_msg.tasks = tasks
@@ -72,16 +84,30 @@ class Robot:
         self._scheduled_tasks_pub.publish(scheduled_tasks_msg)
 
     def winner_callback(self, msg):
+        print "Robot " + str(self.id) +  ": Winner received"
+        
         winner_robot_id = msg.robot_id
         task = utils.create_task(msg.task)
 
         if winner_robot_id == self.id:            
+            print "Robot " + str(self.id) +  ": is the winner"
             self.stn.insert_task(task, self._best_task_pos[task.id])
+            self.stn.solve_stn(self._tasks_preconditions)
         
+        print "Robot " + str(self.id) + ": T_AUC: "
+        for t in self._t_auc:
+            print str(t)
+            print ""
+
+        print "Robot " + str(self.id) + ": Removing task"
+        print str(task)
+        print ""
+
         self._t_auc.remove(task)
         self._winner_received = True             
     
     def _tighten_schedule(self):
+        print "Robot " + str(self.id) +  ": Tightening schedule"
         tasks = []
         for i in range(self.stn.task_count):
             task = self.stn._get_task(i)            
@@ -89,10 +115,10 @@ class Robot:
 
             task.update_time_window(task.est, f)
             self.stn.update_task_constraints(task.id)
-            tasks.append(tasks)
+            tasks.append(task)
         return tasks
 
-    def _compute_min_bid(self, task, pc):
+    def _compute_min_bid(self, task):
         task_count = self.stn.task_count
         min_bid = float("inf")
         min_pos = None
@@ -102,7 +128,7 @@ class Robot:
 
             tt_before = temp_stn.total_travel_time
             temp_stn.insert_task(task, i)
-            temp_stn.solve_stn(pc)              
+            temp_stn.solve_stn(self._tasks_preconditions)              
             tt_after = temp_stn.total_travel_time
 
             if temp_stn.is_consistent():

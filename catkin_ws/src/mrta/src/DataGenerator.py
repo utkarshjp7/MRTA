@@ -1,7 +1,7 @@
 from numpy import random 
 from Task import Task
 from Robot import Robot
-from PrecedenceGraph import PrecedenceGraph, Vertex
+from PrecedenceGraph import PrecedenceGraph, Node
 
 class DataGenerator:
 
