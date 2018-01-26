@@ -3,5 +3,5 @@ devel
 build
 
 *.swp
-
+*.pyc
 *.vscode
