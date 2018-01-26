@@ -1,4 +1,3 @@
-A simulator for multi robot task allocation developed with ROS and Gazebo.
 
 run `catkin_make` under `catkin_ws` directory to build the package.
  
