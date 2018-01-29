@@ -137,6 +137,7 @@ class PIA(object):
         for robot_id, bid in self._bids.iteritems():
             if bid[0] < win_bid:                
                 win_robot_id = robot_id
+                win_bid = bid[0]
         
         win_task = self._bids[win_robot_id][1]
         return win_robot_id, win_task
