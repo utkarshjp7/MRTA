@@ -10,7 +10,7 @@ class Robot:
         self.init_pos = (pos_x, pos_y)
         self.id = int(_id)
         self.stn = STN(self.init_pos, 1)
-        self._bid_alpha = 0.2
+        self._bid_alpha = 0.4
         
         self._auc_ack_pub = rospy.Publisher("/auction_ack", AuctionAck, queue_size=10)
         self._bid_pub = rospy.Publisher("/bid", Bid, queue_size=10)
