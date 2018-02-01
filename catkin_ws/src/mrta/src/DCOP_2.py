@@ -1,28 +1,47 @@
+
+import matplotlib.pyplot as plt
+import networkx as nx
 import random
 import math
 import copy
+import re
 
 '''
 #INPUT: set of tasks(time window, location, id), set of robots(initial position, each robot's speed, STN),
 INPUTS: No_var, No_fac
 '''
 
-def Qmessage(variables,factors,Q):
-    for i in range(len(variables)):
+def Qmessage(G,Q,R):
+    No_fac=len([n for n,attrdict in G.node.items() if attrdict['type'] == 'Factor' ])
+    No_var=len([n for n,attrdict in G.node.items() if attrdict['type'] == 'Var' ])
+    
+    for i in range(No_var):
     # Collect Rmessages from all neighboring functions, except the Qmessage receiver
-        for j in range(len(factors)):
-            if j in [index for index, value in enumerate(variables[i]) if value==1]:
-                for k in [index for index, value in enumerate(variables[i]) if value==1]:
+        for j in range(No_fac):
+            if 'F_'+str(j) in G.neighbors('V_'+str(i)):
+            #if j in [index for index, value in enumerate(variables[i]) if value==1]:
+                #for k in [index for index, value in enumerate(variables[i]) if value==1]:
+                q=map(int,re.findall('\d+', ''.join(G.neighbors('V_'+str(i)))))
+                tmp=list(q)
+                tmp.sort()
+                for k in tmp:
                     if k!=j:
                         w=[sum(x) for x in zip(Q[i][j], R[k][i])]
                         Q[i][j]=w
     return Q
 
-def Rmessage(variables, factors,Q,R,f_table):
-    for j in range(len(factors)):
-        for i in range(len(variables)):
-            if i in [index for index, value in enumerate(factors[j]) if value==1]:
-                for k in [index for index, value in enumerate(factors[j]) if value==1]:
+def Rmessage(G,Q,R,f_table):
+    No_fac=len([n for n,attrdict in G.node.items() if attrdict['type'] == 'Factor' ])
+    No_var=len([n for n,attrdict in G.node.items() if attrdict['type'] == 'Var' ])
+    for j in range(No_fac):
+        for i in range(No_var):
+            #if i in [index for index, value in enumerate(factors[j]) if value==1]:
+            if 'V_'+str(i) in G.neighbors('F_'+str(j)):
+                #for k in [index for index, value in enumerate(factors[j]) if value==1]:
+                q=map(int,re.findall('\d+', ''.join(G.neighbors('F_'+str(j)))))
+                tmp=list(q)
+                tmp.sort()
+                for k in tmp:
                     if k!=i:
                         try:
                             sigma_Q.update({k:Q[k][j]})
@@ -66,10 +85,21 @@ def Rmessage(variables, factors,Q,R,f_table):
 '''
 #factors={0:[1,0,1,1],1:[1,0,0,0],2:[1,0,1,0]}
 #variables={0:[1,1,1],1:[0,0,0],2:[1,0,1],3:[1,0,0]}
-factors={0:[1,0,0],1:[1,1,1],2:[0,1,0],3:[0,0,1]}
-variables={0:[1,1,0,0],1:[0,1,1,0],2:[0,1,0,1]}
-No_var=len(variables)
-No_fac=len(factors)
+
+#factors={0:[1,0,0],1:[1,1,1],2:[0,1,0],3:[0,0,1]}
+#variables={0:[1,1,0,0],1:[0,1,1,0],2:[0,1,0,1]}
+
+G=nx.Graph()
+G.add_nodes_from(['F_0','F_1','F_2','F_3'],type='Factor')
+G.add_nodes_from(['V_0','V_1','V_2'],type='Var')
+G.add_edges_from([('F_0','V_0'),('F_1','V_0'),('F_1','V_1'),('F_1','V_2'),('F_2','V_1'),('F_3','V_2')])
+
+No_fac=len([n for n,attrdict in G.node.items() if attrdict['type'] == 'Factor' ])
+No_var=len([n for n,attrdict in G.node.items() if attrdict['type'] == 'Var' ])
+
+#nx.draw(G,with_labels=True,node_size=1000)
+#plt.show()
+
 '''
 Utility function 
 '''
@@ -77,9 +107,8 @@ Utility function
 # Initialize utility func.
 f_table={0: 0}
 for i in range(No_fac):
-    a=len([index for index, value in enumerate(factors[i]) if value == 1])
+    a=len(G.neighbors('F_'+str(i)))
     f_table.update({i: [0 for j in range(2**a)]})
-
 
 #implement some Utility function based on travel time and makespan and other parameters
 
@@ -104,54 +133,51 @@ for i in range(No_var):
 
 # Each variable leaf node
 for i in range(No_var):
-    if len([index for index, value in enumerate(variables[i]) if value == 1])==1:
-        for j in [index for index, value in enumerate(variables[i]) if value == 1]:
+    #if len([index for index, value in enumerate(variables[i]) if value == 1])==1:
+    if len(G.neighbors('V_'+str(i)))==1:
+        #for j in [index for index, value in enumerate(variables[i]) if value == 1]:
+        q=map(int,re.findall('\d+', ''.join(G.neighbors('V_'+str(i)))))
+        tmp=list(q)
+        tmp.sort()
+        for j in tmp:
             Q[i][j][1] = 1
 # Each function leaf node
 for j in range(No_fac):
-    if len([index for index, value in enumerate(factors[j]) if value == 1])==1:
-        for i in [index for index, value in enumerate(factors[j]) if value == 1]:
+    if len(G.neighbors('F_'+str(j)))==1:
+        q=map(int,re.findall('\d+', ''.join(G.neighbors('F_'+str(j)))))
+        tmp=list(q)
+        tmp.sort()
+        for i in tmp:
             R[j][i][1] = f_table[j][1][1]
 print("R:", R)
 
 #Each time a node receives a message from an edge e, it computes outgoing messages
 
 #Calculate Q message, from variable to function
-Q=Qmessage(variables,factors,Q)
+Q=Qmessage(G,Q,R)
 
 print("Q: ",Q)
 
 #Calculate R message, from function to variable
-R=Rmessage(variables, factors,Q,R,f_table)
+R=Rmessage(G,Q,R,f_table)
 print("R: ",R)
 
-
+Z={0: 0}
 for i in range(No_var):
-    for j in [index for index, value in enumerate(variables[i]) if value == 1]:
+    #for j in [index for index, value in enumerate(variables[i]) if value == 1]:
+    q=map(int,re.findall('\d+', ''.join(G.neighbors('V_'+str(i)))))
+    tmp=list(q)
+    tmp.sort()
+    for j in tmp:
         try:
-            z[i].reverse()
             z.update({i: [sum(x) for x in zip(z[i],R[j][i])]})
-            h=0
         except:
             z= {i:R[j][i]}
+            z[i].reverse()
+    Z.update(z)
+    del z
 
-
+print('Z: ',Z)
 
 # divide the (utility value for one robot)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
