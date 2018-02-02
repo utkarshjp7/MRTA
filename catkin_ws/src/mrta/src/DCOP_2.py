@@ -79,6 +79,39 @@ def Rmessage(G,Q,R,f_table):
                 pass
     return R
 
+def Utulity_table(G):
+      
+    No_fac=len([n for n,attrdict in G.node.items() if attrdict['type'] == 'Factor' ])
+    
+    #implement some Utility function based on travel time and makespan and other parameters
+    reward=10
+    
+    f_table={0: 0}
+    for i in range(No_fac):
+        a=len(G.neighbors('F_'+str(i)))
+        f_table.update({i: [int(reward*(math.log(1+bin(j).count('1')) )) for j in range(2**a)]})        
+    #f={0: [0, 2, 4, 6, 3, 5, 6, 7], 1: [0,4], 2: [0, 1, 2, 6]}
+    #f_table={0:[[0],[0,10]],1:[[0,1,2],[0,2,4,15,5,12,10,20]],2:[[1],[0,8]],3:[[2],[0,14]]}
+    #f_table={0:[[0,1],[0,5,2,10]],1:[[0],[0,6]],2:[[0],[2,8]],3:[[1],[0,4]]}
+
+    return f_table
+
+def Z_func(G,Z,R):
+    for i in range(No_var):
+        #for j in [index for index, value in enumerate(variables[i]) if value == 1]:
+        q=map(int,re.findall('\d+', ''.join(G.neighbors('V_'+str(i)))))
+        tmp=list(q)
+        tmp.sort()
+        for j in tmp:
+            try:
+                z.update({i: [sum(x) for x in zip(z[i],R[j][i])]})
+            except:
+                z= {i:R[j][i]}
+                z[i].reverse()
+        Z.update(z)
+        del z
+    return Z
+
 
 '''
 #Create Random Factor Graph
@@ -90,9 +123,14 @@ def Rmessage(G,Q,R,f_table):
 #variables={0:[1,1,0,0],1:[0,1,1,0],2:[0,1,0,1]}
 
 G=nx.Graph()
+'''
 G.add_nodes_from(['F_0','F_1','F_2','F_3'],type='Factor')
 G.add_nodes_from(['V_0','V_1','V_2'],type='Var')
 G.add_edges_from([('F_0','V_0'),('F_1','V_0'),('F_1','V_1'),('F_1','V_2'),('F_2','V_1'),('F_3','V_2')])
+'''
+G.add_nodes_from(['F_0','F_1','F_2','F_3'],type='Factor')
+G.add_nodes_from(['V_0','V_1'],type='Var')
+G.add_edges_from([('F_0','V_0'),('F_0','V_1'),('F_1','V_0'),('F_2','V_0'),('F_3','V_1')])
 
 No_fac=len([n for n,attrdict in G.node.items() if attrdict['type'] == 'Factor' ])
 No_var=len([n for n,attrdict in G.node.items() if attrdict['type'] == 'Var' ])
@@ -103,17 +141,8 @@ No_var=len([n for n,attrdict in G.node.items() if attrdict['type'] == 'Var' ])
 '''
 Utility function 
 '''
-
-# Initialize utility func.
-f_table={0: 0}
-for i in range(No_fac):
-    a=len(G.neighbors('F_'+str(i)))
-    f_table.update({i: [0 for j in range(2**a)]})
-
-#implement some Utility function based on travel time and makespan and other parameters
-
-#f={0: [0, 2, 4, 6, 3, 5, 6, 7], 1: [0,4], 2: [0, 1, 2, 6]}
-f_table={0:[[0],[0,10]],1:[[0,1,2],[0,2,4,15,5,12,10,20]],2:[[1],[0,8]],3:[[2],[0,14]]}
+f_table=Utulity_table(G)
+print('Utility_table: ',f_table)
 
 '''
 Max-Sum Algorithm
@@ -148,7 +177,7 @@ for j in range(No_fac):
         tmp=list(q)
         tmp.sort()
         for i in tmp:
-            R[j][i][1] = f_table[j][1][1]
+            R[j][i]= copy.copy(f_table[j])
 print("R:", R)
 
 #Each time a node receives a message from an edge e, it computes outgoing messages
@@ -163,19 +192,7 @@ R=Rmessage(G,Q,R,f_table)
 print("R: ",R)
 
 Z={0: 0}
-for i in range(No_var):
-    #for j in [index for index, value in enumerate(variables[i]) if value == 1]:
-    q=map(int,re.findall('\d+', ''.join(G.neighbors('V_'+str(i)))))
-    tmp=list(q)
-    tmp.sort()
-    for j in tmp:
-        try:
-            z.update({i: [sum(x) for x in zip(z[i],R[j][i])]})
-        except:
-            z= {i:R[j][i]}
-            z[i].reverse()
-    Z.update(z)
-    del z
+Z=Z_func(G,Z,R)
 
 print('Z: ',Z)
 
