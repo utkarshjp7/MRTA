@@ -132,6 +132,7 @@ G.add_nodes_from(['F_0','F_1','F_2','F_3'],type='Factor')
 G.add_nodes_from(['V_0','V_1'],type='Var')
 G.add_edges_from([('F_0','V_0'),('F_0','V_1'),('F_1','V_0'),('F_2','V_0'),('F_3','V_1')])
 
+
 No_fac=len([n for n,attrdict in G.node.items() if attrdict['type'] == 'Factor' ])
 No_var=len([n for n,attrdict in G.node.items() if attrdict['type'] == 'Var' ])
 
@@ -141,6 +142,7 @@ No_var=len([n for n,attrdict in G.node.items() if attrdict['type'] == 'Var' ])
 '''
 Utility function 
 '''
+
 f_table=Utulity_table(G)
 print('Utility_table: ',f_table)
 
@@ -163,7 +165,7 @@ for i in range(No_var):
 # Each variable leaf node
 for i in range(No_var):
     #if len([index for index, value in enumerate(variables[i]) if value == 1])==1:
-    if len(G.neighbors('V_'+str(i)))==1:
+    if len(list(G.neighbors('V_'+str(i)))) == 1:
         #for j in [index for index, value in enumerate(variables[i]) if value == 1]:
         q=map(int,re.findall('\d+', ''.join(G.neighbors('V_'+str(i)))))
         tmp=list(q)
@@ -172,7 +174,7 @@ for i in range(No_var):
             Q[i][j][1] = 1
 # Each function leaf node
 for j in range(No_fac):
-    if len(G.neighbors('F_'+str(j)))==1:
+    if len(list(G.neighbors('F_'+str(j)))) == 1:
         q=map(int,re.findall('\d+', ''.join(G.neighbors('F_'+str(j)))))
         tmp=list(q)
         tmp.sort()

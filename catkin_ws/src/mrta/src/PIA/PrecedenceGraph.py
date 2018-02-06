@@ -50,9 +50,9 @@ class Node:
 
 class PrecedenceGraph:
     
-    def __init__(self, task_list):          
+    def __init__(self, task_list, beta):          
         self._nodes = set([ Node(task) for task in task_list ])        
-        self._alpha = 0.5
+        self._beta = beta
 
         #variables for tarjan's algorithm for finding cycles in graph
         self._tarjan_scc = []
@@ -120,6 +120,13 @@ class PrecedenceGraph:
 
         for v in roots:
             self._calc_chain_priority(v)
+    
+    def get_all_tasks(self):
+        tasks = []
+        for node in self._nodes:
+            tasks.append(node.task)
+        
+        return tasks
 
     def update(self, scheduled_task):
         pc = {}
@@ -276,4 +283,4 @@ class PrecedenceGraph:
         ut = duration + max_c_ut
 
         node.longest_paths = (lt, ut)                        
-        node.priority = (1 - self._alpha) * lt + self._alpha * ut
+        node.priority = (1 - self._beta) * lt + self._beta * ut
