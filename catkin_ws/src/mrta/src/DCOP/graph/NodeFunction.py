@@ -32,6 +32,10 @@ class NodeFunction:
         '''   
         self.function_id = function_id
 
+    @property
+    def params(self):
+        return self.functionEvaluator.parameters
+
     def setFunction(self, functionEvaluator):
         '''
             functionEvaluator: functionEvaluator's NodeFunction

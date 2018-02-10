@@ -83,8 +83,6 @@ class NodeVariable:
         '''
         self.values.append(v)
 
-
-    
     def addIntegerValues(self, number_of_values):
         '''
             number_of_values: quantity of the values to add to domain's variable

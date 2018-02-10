@@ -1,10 +1,10 @@
-from numpy import random 
-from Task import Task
-from Robot import Robot
-from PrecedenceGraph import PrecedenceGraph, Node
-from Logger import Logger
-import sys
+import os, sys
 import pickle
+from numpy import random
+from Task import Task
+from PrecedenceGraph import PrecedenceGraph, Node
+from Robot import Robot
+from Logger import Logger
 
 class DataSet:
 
@@ -19,12 +19,13 @@ class DataGenerator:
 
     def __init__(self, map_size_x, map_size_y):
         self._map_size = (map_size_x, map_size_y)
-        self.logger = Logger()  
+        self._logger = Logger()
+        self.task_types = [1, 2]
 
     def generate_tasks(self, num_of_tasks, task_locations=None):
         if task_locations is not None:
             if len(task_locations) != num_of_tasks:
-                self.logger.error("generate_tasks: The number of task locations is not same as the number of tasks.")
+                self._logger.error("generate_tasks: The number of task locations is not same as the number of tasks.")
 
         tasks = []
         duration = random.randint(20, 40)
@@ -32,14 +33,16 @@ class DataGenerator:
         for i in range(num_of_tasks):
             task_id = i + 1
             esf = random.randint(25, 400)
-            lft = esf + random.randint(100, 1200)            
+            lft = esf + random.randint(100, 1200)
+            task_type = random.choice(self.task_types, 1, p=[0.5, 0.5])[0]
+
             if task_locations is not None:
                 pos_x = task_locations[i][0]
                 pos_y = task_locations[i][1]
             else:
                 pos_x, pos_y = self.generate_locations(1)[0]
 
-            tasks.append(Task(esf, lft, duration, task_id, pos_x, pos_y))
+            tasks.append(Task(esf, lft, duration, task_id, pos_x, pos_y, task_type))
         
         return tasks
 
@@ -78,7 +81,17 @@ class DataGenerator:
 
         for i in range(num_of_robots):
             robot_id = i + 1
-            robot = Robot(robot_id, locations[i][0], locations[i][1], bid_alpha)
+            capability = set()
+            ran = random.uniform()
+
+            if ran > 0.5:
+                capability = set([1, 2])
+            elif ran > 0.25:
+                capability.add(1)
+            else:
+                capability.add(2)
+
+            robot = Robot(robot_id, locations[i][0], locations[i][1], bid_alpha, capability)            
             robots.append(robot)
 
         return robots
@@ -91,7 +104,7 @@ if __name__ == "__main__":
     max_num_of_edges = 3 * num_of_tasks
     beta = 0.5
     bid_alpha = 0.5
-    data_dir = '../../data/'
+    data_dir = '../data/'
 
     if len(sys.argv) < 2:
         exit(1)

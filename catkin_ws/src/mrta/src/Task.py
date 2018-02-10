@@ -2,9 +2,8 @@ import uuid
 
 class Task(object):
     
-    def __init__(self, est, lft, duration, _id, pos_x, pos_y):
+    def __init__(self, est, lft, duration, _id, pos_x, pos_y, _type=None):
         self.id = _id
-
         self.start_time = 0
         self.finish_time = 0
         self.est = est
@@ -12,7 +11,8 @@ class Task(object):
         self.eft = est + duration    
         self.lft = lft             
         self.duration = duration
-        self.location = (pos_x, pos_y)        
+        self.location = (pos_x, pos_y)
+        self.type = _type
 
     def __eq__(self, other):
         return self.id == other.id      

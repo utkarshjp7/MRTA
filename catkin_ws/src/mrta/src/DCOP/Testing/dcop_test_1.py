@@ -47,11 +47,7 @@ def create_DCop():
     nodefunction1.addNeighbour(nodeVariable1)
     nodefunction2.addNeighbour(nodeVariable1)
     nodefunction2.addNeighbour(nodeVariable2)
-    nodefunction3.addNeighbour(nodeVariable2)    
-                                            
-    nodefunction1.getFunction().setParameters([nodeVariable1]) 
-    nodefunction2.getFunction().setParameters([nodeVariable1, nodeVariable2])
-    nodefunction3.getFunction().setParameters([nodeVariable2])
+    nodefunction3.addNeighbour(nodeVariable2)                                                
 
     nodefunction1.getFunction().addParametersCost([NodeArgument(0)], 0)
     nodefunction1.getFunction().addParametersCost([NodeArgument(1)], 10)

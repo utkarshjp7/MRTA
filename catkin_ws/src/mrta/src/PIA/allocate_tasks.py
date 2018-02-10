@@ -1,14 +1,18 @@
 #!/usr/bin/python2.7
 
+import os
+import sys
 from PIA import PIA
 import pickle
-import sys
+
+cur_dir = os.path.dirname(os.path.realpath(__file__))
+sys.path.append(os.path.abspath(cur_dir + "/.."))
 from DataGenerator import DataSet
 
 if __name__ == "__main__":
 
     if len(sys.argv) < 2:
-        exit(1)
+        exit(1)        
 
     data_dir = "../../data/"
     file_name = 'dataset' + sys.argv[1] + '.pickle'

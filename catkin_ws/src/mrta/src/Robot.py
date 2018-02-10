@@ -6,22 +6,22 @@ from STN import STN
 from copy import deepcopy
 from Logger import Logger
 
-class Robot:
+class Robot():
 
-    def __init__(self, _id, pos_x, pos_y, bid_alpha):  
+    def __init__(self, _id, pos_x, pos_y, bid_alpha, capability):  
         self.logger = Logger()
         self.id = _id
         self.name = "robot" + str(self.id)
         self.init_pos = (pos_x, pos_y)
         self.stn = STN(self.init_pos, 1)
         
+        self._capability = capability
         self._bid_alpha = bid_alpha        
         self._completed_auctions = []
         self._t_auc = []
         self._best_task_pos = {}
         self._winner_received = True
         self._tasks_preconditions = {}
-
         self._auc_ack_pub = None
         self._bid_pub = None        
         self._scheduled_tasks_pub = None             
@@ -121,6 +121,20 @@ class Robot:
         rospy.signal_shutdown("Normal Shutdown")                
         return TerminateRobotResponse(True)
     
+    def is_capable(self, task):
+        if task.type not in self._capability:
+            return False
+        
+        task_count = self.stn.task_count
+        for i in range(task_count + 1):   
+            temp_stn = deepcopy(self.stn)
+            temp_stn.insert_task(task, i)
+            temp_stn.solve_stn({})              
+            if temp_stn.is_consistent():
+                return True
+        
+        return False
+
     def _publish_scheduled_tasks(self, tasks):
         scheduled_tasks_msg = ScheduledTasks()
         scheduled_tasks_msg.robot_id = self.id

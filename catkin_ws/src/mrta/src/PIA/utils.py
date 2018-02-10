@@ -1,5 +1,10 @@
+import os
+import sys
 import numpy as np
 from mrta.msg import Task as Task_Msg
+
+cur_dir = os.path.dirname(os.path.realpath(__file__))
+sys.path.append(os.path.abspath(cur_dir + "/.."))
 from Task import Task
 
 def compute_distance(vecA, vecB):

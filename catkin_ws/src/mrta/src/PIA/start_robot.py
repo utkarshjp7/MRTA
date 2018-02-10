@@ -1,11 +1,15 @@
 #!/usr/bin/python2.7
 
+import os
 import sys
 import rospy
 import logging
 import pickle
-from DataGenerator import DataGenerator, DataSet
 import multiprocessing as mp
+
+cur_dir = os.path.dirname(os.path.realpath(__file__))
+sys.path.append(os.path.abspath(cur_dir + "/.."))
+from DataGenerator import DataGenerator, DataSet
 
 def start_robot(robot, result):
     ms, tt = robot.start_listener()

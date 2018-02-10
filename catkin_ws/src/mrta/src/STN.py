@@ -15,7 +15,7 @@ class STN(object):
         self._digraph = nx.DiGraph()
         self._robot_speed = robot_speed    
         
-        zero_task = Task(0, 0, 0, -1, robot_pos[0], robot_pos[1])
+        zero_task = Task(0, 0, 0, -1, robot_pos[0], robot_pos[1], 0) #dummy task
         self._digraph.add_node("zero", task=zero_task, index=-1)
         
     def __str__(self):
@@ -85,8 +85,11 @@ class STN(object):
             cur_task = self._get_task(i)
             pre_task = self._get_task(i-1)            
 
-            travel_time = self._compute_travel_time(cur_task.location, pre_task.location) 
-            start_time = max(preconditions[cur_task], cur_task.est, pre_task.finish_time + travel_time)
+            travel_time = self._compute_travel_time(cur_task.location, pre_task.location)
+            if cur_task in preconditions:
+                start_time = max(preconditions[cur_task], cur_task.est, pre_task.finish_time + travel_time)
+            else:
+                start_time = max(cur_task.est, pre_task.finish_time + travel_time)
             cur_task.start_time = start_time if start_time <= cur_task.lst else float('inf')   
             cur_task.finish_time = cur_task.start_time + cur_task.duration
 
