@@ -22,6 +22,7 @@ if __name__ == "__main__":
 
     data_dir = '../../data/'
     file_name = 'dataset' + sys.argv[1] + '.pickle'
+    output_file_name = 'dataset' + sys.argv[1] + '_pia_result.pickle'
     
     dataset = pickle.load(open(data_dir + file_name))
     result = mp.Manager().dict()
@@ -41,4 +42,4 @@ if __name__ == "__main__":
 
     dataset.schedules.append(schedules)
 
-    pickle.dump(dataset, open(data_dir + file_name, 'wb'))
+    pickle.dump(dataset, open(data_dir + output_file_name, 'wb'))

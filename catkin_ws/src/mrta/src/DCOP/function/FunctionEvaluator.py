@@ -12,8 +12,9 @@ Calculates the actual value of a function and it manages the cost function
 
 import sys, os
 
-sys.path.append(os.path.abspath('../misc/'))
-sys.path.append(os.path.abspath('../Graph/'))
+cur_dir = os.path.dirname(os.path.realpath(__file__))
+sys.path.append(os.path.abspath(cur_dir + '/../misc/'))
+sys.path.append(os.path.abspath(cur_dir + '/../Graph/'))
 
 from NodeArgumentArray import NodeArgumentArray
 

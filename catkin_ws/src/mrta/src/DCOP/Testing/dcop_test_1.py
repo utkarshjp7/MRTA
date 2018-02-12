@@ -93,5 +93,9 @@ if __name__ == "__main__":
     ms.setIterationsNumber(2)
     ms.solve_complete()
 
-    report = ms.getReport()
-    print report
+    for agent in ms.cop.getAgents():
+        for variable in agent.getVariables():
+            print str(variable.toString()) + ": " + str(variable.getStateArgument())
+
+    #report = ms.getReport()
+    #print report

@@ -11,7 +11,6 @@ This class manages the cost functions and the maximization/minimization
 '''
 
 import sys, os
-from decimal import Decimal
 
 sys.path.append(os.path.abspath('../function/'))
 sys.path.append(os.path.abspath('../misc/'))
@@ -196,9 +195,9 @@ class TabularFunction(FunctionEvaluator):
             Calculates the maxes with functionArgument respect x
         '''     
         if(op == "max"):
-            cost = Decimal("-Infinity")
+            cost = float("-Infinity")
         elif(op == "min"):
-            cost = Decimal("+Infinity")
+            cost = float("+Infinity")
             
         for xParamIndex in range(x.size()):
             
@@ -266,9 +265,9 @@ class TabularFunction(FunctionEvaluator):
         
         for index in range(x.size()):
             if(op == "max"):
-                maxes.append(Decimal("-Infinity"))
+                maxes.append(float("-Infinity"))
             elif(op == "min"):
-                maxes.append(Decimal("+Infinity"))
+                maxes.append(float("+Infinity"))
                        
                          
         for i in range(fzParametersNumber):

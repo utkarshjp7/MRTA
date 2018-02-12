@@ -11,13 +11,13 @@ It implements the Max Sum Algorithm (max/min)
 
 import time
 import sys, os
-from decimal import Decimal
 import datetime
 
-sys.path.append(os.path.abspath('../maxsum/'))
-sys.path.append(os.path.abspath('../messages/'))
-sys.path.append(os.path.abspath('../operation/'))
-sys.path.append(os.path.abspath('../system/'))
+cur_dir = os.path.dirname(os.path.realpath(__file__))
+sys.path.append(os.path.abspath(cur_dir + '/../maxsum/'))
+sys.path.append(os.path.abspath(cur_dir + '/../messages/'))
+sys.path.append(os.path.abspath(cur_dir + '/../operation/'))
+sys.path.append(os.path.abspath(cur_dir + '/../system/'))
 
 from MailMan import MailMan
 from MessageFactory import MessageFactory
@@ -94,11 +94,11 @@ class MaxSum:
         
         if plus_operation == 'max':
             self.op = Max(self.mfactory)
-            self.latestValue_start = Decimal('-Infinity')
+            self.latestValue_start = float('-Infinity')
             
         elif plus_operation == 'min':
             self.op = Min(self.mfactory)
-            self.latestValue_start = Decimal('+Infinity')
+            self.latestValue_start = float('+Infinity')
          
         '''
             create MaxSumOperator: Max - Sum
@@ -193,7 +193,6 @@ class MaxSum:
             True at end else False 
         '''
         return self.updateOnlyAtEnd
-        
      
     def solve_complete(self):  
         '''
@@ -348,5 +347,13 @@ class MaxSum:
         '''
             save the final report on file
         '''
-        #self.stringToFile(self.report, self.reportpath)    
+        #self.stringToFile(self.report, self.reportpath)  
+
+    def get_results(self):
+        result = {} # { variable_id : function_id }
+        for agent in self.cop.getAgents():
+            for variable in agent.getVariables():
+                result[variable.id_var] = variable.getStateArgument().value
+        
+        return result
     

@@ -124,16 +124,34 @@ class Robot():
     def is_capable(self, task):
         if task.type not in self._capability:
             return False
-        
+
+        return True
+
+    def find_min_utility(self, task):
         task_count = self.stn.task_count
+        min_utility = float("inf")
+        min_pos = None
+        
         for i in range(task_count + 1):   
             temp_stn = deepcopy(self.stn)
+
+            tt_before = temp_stn.total_travel_time
             temp_stn.insert_task(task, i)
             temp_stn.solve_stn({})              
+            tt_after = temp_stn.total_travel_time
+
             if temp_stn.is_consistent():
-                return True
-        
-        return False
+                addition_travel_time = tt_after - tt_before
+                utility = self._compute_utility(temp_stn.get_makespan(), addition_travel_time)
+                if utility < min_utility:
+                    min_utility = utility
+                    min_pos = i
+
+        return min_utility, min_pos
+
+    def add_task(self, task, pos):
+        self.stn.insert_task(task, pos)
+        self.stn.solve_stn({})
 
     def _publish_scheduled_tasks(self, tasks):
         scheduled_tasks_msg = ScheduledTasks()
@@ -179,4 +197,7 @@ class Robot():
         return min_bid, min_pos
 
     def _compute_bid(self, makespan, travel_time):
-        return makespan * self._bid_alpha + travel_time * (1 - self._bid_alpha) 
+        return makespan * self._bid_alpha + travel_time * (1 - self._bid_alpha)
+
+    def _compute_utility(self, makespan, travel_time):
+        return makespan * self._bid_alpha + travel_time * (1 - self._bid_alpha)
