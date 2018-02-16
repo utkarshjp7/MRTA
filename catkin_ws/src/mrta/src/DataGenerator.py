@@ -1,4 +1,5 @@
 import os, sys
+import argparse
 import pickle
 from numpy import random
 from Task import Task
@@ -8,11 +9,11 @@ from Logger import Logger
 
 class DataSet:
 
-    def __init__(self, p_graphs, robots, beta, alpha):        
+    def __init__(self, p_graphs, beta, bid_alpha, cost_alpha):        
         self.p_graphs = p_graphs
-        self.robots = robots
         self.beta = beta
-        self.bid_alpha = bid_alpha        
+        self.bid_alpha = bid_alpha
+        self.cost_alpha = cost_alpha         
         self.schedules = []
 
 class DataGenerator:
@@ -32,8 +33,8 @@ class DataGenerator:
 
         for i in range(num_of_tasks):
             task_id = i + 1
-            esf = random.randint(25, 400)
-            lft = esf + random.randint(100, 1200)
+            est = random.randint(25, 400)
+            lft = est + random.randint(100, 1200)
             task_type = random.choice(self.task_types, 1, p=[0.5, 0.5])[0]
 
             if task_locations is not None:
@@ -42,7 +43,7 @@ class DataGenerator:
             else:
                 pos_x, pos_y = self.generate_locations(1)[0]
 
-            tasks.append(Task(esf, lft, duration, task_id, pos_x, pos_y, task_type))
+            tasks.append(Task(est, lft, duration, task_id, pos_x, pos_y, task_type))
         
         return tasks
 
@@ -56,7 +57,9 @@ class DataGenerator:
 
     def generate_precedence_graph(self, tasks, max_num_of_edges, beta):
         p_graph = PrecedenceGraph(tasks, beta)
-        num_of_edges = random.randint(0, max_num_of_edges)
+        num_of_edges = 0
+        if max_num_of_edges > 0:
+            num_of_edges = random.randint(0, max_num_of_edges)
 
         i = 0
         while i < num_of_edges:
@@ -75,7 +78,7 @@ class DataGenerator:
         p_graph.calc_all_priorities()
         return p_graph
 
-    def generate_robots(self, num_of_robots, bid_alpha):
+    def generate_robots(self, num_of_robots, robot_speed):
         locations = self.generate_locations(num_of_robots)          
         robots = []
 
@@ -91,43 +94,58 @@ class DataGenerator:
             else:
                 capability.add(2)
 
-            robot = Robot(robot_id, locations[i][0], locations[i][1], bid_alpha, capability)            
+            robot = Robot(robot_id, locations[i][0], locations[i][1], capability, robot_speed)            
             robots.append(robot)
 
         return robots
 
+    def generate_dataset(self, num_of_tasks, num_of_precedence_graphs, max_num_of_edges, beta):
+        p_graphs = []    
+        locations = self.generate_locations(num_of_tasks)      
+
+        for i in range(num_of_precedence_graphs):
+            tasks = self.generate_tasks(num_of_tasks, locations)
+            p_graph = self.generate_precedence_graph(tasks, max_num_of_edges, beta)
+            p_graphs.append(p_graph)
+
+        return p_graphs  
+
 if __name__ == "__main__":
 
-    num_of_tasks = 8
-    num_of_robots = 2
-    num_of_precedence_graphs = 10
-    max_num_of_edges = 3 * num_of_tasks
-    beta = 0.5
-    bid_alpha = 0.5
-    data_dir = '../data/'
+    parser = argparse.ArgumentParser(description="MRTA Data Generator")
 
-    if len(sys.argv) < 2:
-        exit(1)
+    parser.add_argument('--datasets',
+        help='Number of datasets to generate',
+        dest='num_of_datasets',
+        type=int,
+        default=1,
+        action='store')
 
-    dataset_id = sys.argv[1]    
+    parser.add_argument('--x',
+        help='X Dimention of Map',
+        dest='map_x',
+        type=int,
+        default=100,
+        action='store')
 
-    dg = DataGenerator(20, 20)
-    task_locations = { i : (None, None) for i in range(num_of_tasks) }
-    p_graphs = []
-    robots = []    
-            
-    #generate task locations
-    locations = dg.generate_locations(num_of_tasks)      
+    parser.add_argument('--y',
+        help='Y Dimention of Map',
+        dest='map_y',
+        type=int,
+        default=100,
+        action='store')
 
-    #generate precedence graphs
-    for i in range(num_of_precedence_graphs):
-        tasks = dg.generate_tasks(num_of_tasks, locations)
-        p_graph = dg.generate_precedence_graph(tasks, max_num_of_edges, beta)
-        p_graphs.append(p_graph)
+    args = parser.parse_args()
+    num_of_datasets = args.num_of_datasets
+    map_x = args.map_x
+    map_y = args.map_y
 
-    #generate robots
-    robots = dg.generate_robots(num_of_robots, bid_alpha)
+    num_of_robots = [ 2, 2, 2, 3, 3, 3, 4, 4, 4 ]
 
-    dataset = DataSet(p_graphs, robots, beta, bid_alpha)
-    file_path = data_dir + 'dataset' + dataset_id + '.pickle'
-    pickle.dump(dataset, open(file_path, 'wb'))  
+    for i in range(1, num_of_datasets+1):
+        dg = DataGenerator(map_x, map_y)
+        dg.generate_dataset(i, num_of_robots[i-1])
+
+
+
+   

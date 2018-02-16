@@ -33,5 +33,7 @@ def create_tasks(task_msgs):
 
 def create_task(task_msg):
     task = Task(task_msg.est, task_msg.lft, task_msg.duration, task_msg.id, task_msg.location[0], task_msg.location[1])
+    task.start_time = task_msg.start_time
+    task.finish_time = task_msg.finish_time
     return task
 

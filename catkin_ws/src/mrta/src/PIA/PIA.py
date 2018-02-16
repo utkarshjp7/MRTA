@@ -77,6 +77,8 @@ class PIA(object):
             for t in t_auct:
                 self.logger.info("Updating precedence graph")
                 pc = self.p_graph.update(t)
+                for x in pc:
+                    self.logger.debug("Precondition for task {0} is {1}".format(x.id, pc[x]))
                 for k,v in pc.iteritems():
                     self._tasks_preconditions[k] = v       
             
@@ -125,9 +127,9 @@ class PIA(object):
     def scheduled_tasks_callback(self, msg):
         self.logger.debug("Received scheduled tasks from robot {0}".format(msg.robot_id))
         tasks = utils.create_tasks(msg.tasks)
+        for task in tasks:
+            self.logger.debug("{0}".format(str(task)))
         robot_id = msg.robot_id
-        robot_makespan = msg.makespan
-        robot_travel_time = msg.travel_time
 
         self.p_graph.update_tasks(tasks)
         self._scheduled_tasks_flag[robot_id] = 1

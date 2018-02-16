@@ -35,6 +35,8 @@ class STN(object):
         if index < 0 or index > self.task_count:
             return
 
+        self._increase_indexes(index)
+
         start_node_id = str(task.id) + 's'
         end_node_id = str(task.id) + 'e'
         zero_node_id = self._get_node(-1)[0]
@@ -46,7 +48,6 @@ class STN(object):
         self._add_temporal_constraint(zero_node_id, end_node_id, task.lft, task.eft)
         self._add_temporal_constraint(start_node_id, end_node_id, task.duration, task.duration)                
 
-        self._increase_indexes(index)
         additional_travel_time = 0
 
         previous_node = self._get_node(index-1, _type='end')
@@ -108,6 +109,13 @@ class STN(object):
 
         self._add_temporal_constraint(zero_node_id, start_node_id, task.lst, task.est)
         self._add_temporal_constraint(zero_node_id, end_node_id, task.lft, task.eft)
+
+    def get_all_tasks(self):
+        all_tasks = set()
+        for i in range(self.task_count):
+            all_tasks.add(self._get_task(i))
+        
+        return all_tasks
 
     def _get_node(self, index=None, task_id=None, _type=None):
         result = None
