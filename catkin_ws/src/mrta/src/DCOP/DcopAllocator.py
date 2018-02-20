@@ -22,14 +22,13 @@ from NodeFunction import NodeFunction
 from NodeArgument import NodeArgument
 from COP_Instance import COP_Instance
 from MaxSum import MaxSum
-from Logger import Logger
 
 class DcopAllocator:
 
-    def __init__(self, p_graph):
+    def __init__(self, p_graph, logger):
         self._p_graph = p_graph
         self._cost_table = {} # { task_id : { robot_id : (utility, stn_pos) } }
-        self.logger = Logger()
+        self.logger = logger
         self._tasks_preconditions = {}
 
     def allocate(self, robots, collaboration):        
@@ -52,7 +51,7 @@ class DcopAllocator:
 
             c = max([ node.priority for node in tl ]) if tl else 0
             batch = set([ node.task for node in tf if node.priority > c ])
-            
+                        
             cur_tasks = deepcopy(batch)
             while len(cur_tasks) > 0:
                 self.logger.debug("Creating dcop for {0} tasks.".format(len(cur_tasks)))
@@ -66,8 +65,29 @@ class DcopAllocator:
                 if len(results) == 0:
                     cur_tasks.clear()
                     print("Tasks cannot be allocated.")
-                    break                                        
-                                                                                
+                    break                                            
+
+                scheduled_tasks = set()
+                task_ids = set(results.values())
+
+                if len([t for t in task_ids if t != 0]) == 0:
+                    print "All zeros. Should not happen"
+                    sys.exit(0)
+
+                for task_id in task_ids:
+                    if task_id != 0:
+                        assigned_robots = [r for r,t in results.iteritems() if t == task_id]
+                        robot_id = assigned_robots[-1]
+                        self.logger.debug("Task {0} has been assigned to robot {1}".format(task_id, robot_id))
+                        robot = [robot for robot in robots if robot.id == robot_id][0]
+                        scheduled_task = [task for task in cur_tasks if task.id == task_id][0]
+                        pos = self._cost_table[scheduled_task.id][robot.id][1]
+                        self.logger.debug("Adding task {0} to robot {1}'s STN at position {2}".format(task_id, robot_id, pos))
+                        robot.add_task(scheduled_task, pos, self._tasks_preconditions)
+                        self.logger.debug("Task has been added.")
+                        scheduled_tasks.add(scheduled_task)
+
+                """
                 scheduled_tasks = set()
                 for robot_id, task_id in results.iteritems():
                     if task_id != 0:
@@ -79,11 +99,14 @@ class DcopAllocator:
                         robot.add_task(scheduled_task, pos, self._tasks_preconditions)
                         self.logger.debug("Task has been added.")
                         scheduled_tasks.add(scheduled_task)
+                """
                 
                 cur_tasks = cur_tasks.difference(scheduled_tasks)  #remove scheduled tasks
             
             for robot in robots:
-                tasks = robot.get_scheduled_tasks(0)
+                tasks = robot.tighten_schedule()
+                self.logger.debug("Robot {0}: Makespan is {1}".format(robot.id, robot.stn.get_makespan()))
+                self.logger.debug("\nRobot {0}: Schedule:\n {1}\n".format(robot.id, str(robot.stn)))
                 self._p_graph.update_tasks(tasks)
 
             for task in batch:                
@@ -180,14 +203,18 @@ class DcopAllocator:
             i += 1
 
         function_utility = 10000000
+
         num_of_robots = len(robot_cost_arr)
         if collaboration:
             if num_of_robots > 0:
-                total_cost = sum(robot_cost_arr)/float(len(robot_cost_arr))
+                total_cost = self._calc_combined_cost(robot_cost_arr)
                 function_utility = math.log(total_cost)
         elif num_of_robots == 1:
-                total_cost = sum(robot_cost_arr)/float(len(robot_cost_arr))
+                total_cost = self._calc_combined_cost(robot_cost_arr)
                 function_utility = math.log(total_cost)
 
         return function_utility
+
+    def _calc_combined_cost(self, robot_cost_arr):
+        return sum(robot_cost_arr)/float(len(robot_cost_arr))
 

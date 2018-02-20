@@ -2,13 +2,12 @@ import rospy
 import utils
 from mrta.msg import AuctionRequest, AuctionAck, Task, Bid, Winner, ScheduledTasks
 from mrta.srv import TerminateRobot
-from Logger import Logger
 
 class PIA(object):
 
-    def __init__(self, p_graph, robots):        
+    def __init__(self, p_graph, robots, logger):        
         
-        self.logger = Logger()
+        self.logger = logger
         self.p_graph = p_graph
         self.robots = robots
 

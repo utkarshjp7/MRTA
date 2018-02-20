@@ -1,12 +1,10 @@
-
 import utils
-from Logger import Logger
 
 class PIA(object):
 
-    def __init__(self, p_graph, robots):        
+    def __init__(self, p_graph, robots, logger):        
         
-        self.logger = Logger()
+        self.logger = logger
         self.p_graph = p_graph
         self.robots = robots                                      
         self._tasks_preconditions = {}
@@ -64,7 +62,9 @@ class PIA(object):
                 i += 1
 
             for robot in self.robots:
-                tasks = robot.get_scheduled_tasks(auc_id)
+                tasks = robot.tighten_schedule()
+                self.logger.debug("Robot {0}: Makespan is {1}".format(robot.id, robot.stn.get_makespan()))
+                self.logger.debug("\nRobot {0}: Schedule:\n {1}\n".format(robot.id, str(robot.stn)))
                 self.p_graph.update_tasks(tasks)
 
             self.logger.debug("Auction {0} finished".format(auc_id))

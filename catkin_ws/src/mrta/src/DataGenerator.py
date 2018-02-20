@@ -5,7 +5,6 @@ from numpy import random
 from Task import Task
 from PrecedenceGraph import PrecedenceGraph, Node
 from Robot import Robot
-from Logger import Logger
 
 class DataSet:
 
@@ -18,9 +17,9 @@ class DataSet:
 
 class DataGenerator:
 
-    def __init__(self, map_size_x, map_size_y):
+    def __init__(self, map_size_x, map_size_y, logger):
         self._map_size = (map_size_x, map_size_y)
-        self._logger = Logger()
+        self._logger = logger
         self.task_types = [1, 2]
 
     def generate_tasks(self, num_of_tasks, task_locations=None):
@@ -81,20 +80,22 @@ class DataGenerator:
     def generate_robots(self, num_of_robots, robot_speed):
         locations = self.generate_locations(num_of_robots)          
         robots = []
+        task_types = [1,2]
 
         for i in range(num_of_robots):
             robot_id = i + 1
             capability = set()
             ran = random.uniform()
 
-            if ran > 0.5:
-                capability = set([1, 2])
-            elif ran > 0.25:
-                capability.add(1)
+            #first robot capable of doing all tasks
+            if i == 0 or ran > 0.66:
+                capability = set(task_types)
+            elif ran > 0.33:
+                capability.add(task_types[0])
             else:
-                capability.add(2)
+                capability.add(task_types[1])
 
-            robot = Robot(robot_id, locations[i][0], locations[i][1], capability, robot_speed)            
+            robot = Robot(robot_id, locations[i][0], locations[i][1], capability, robot_speed, self._logger)            
             robots.append(robot)
 
         return robots

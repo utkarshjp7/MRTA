@@ -3,6 +3,7 @@ import sys
 import pickle
 import argparse
 from copy import deepcopy
+from datetime import datetime
 import psycopg2
 
 cur_dir = os.path.dirname(os.path.realpath(__file__))
@@ -13,7 +14,7 @@ from PIA2 import PIA
 from DcopAllocator import DcopAllocator
 from Robot import Robot
 from DataGenerator import DataGenerator, DataSet
-import random
+from Logger import Logger, LogLevel
 
 def execute_sql(conn, sql):
     cursor = conn.cursor()
@@ -27,32 +28,32 @@ def execute_sql(conn, sql):
     conn.commit()
     cursor.close()    
 
-def print_schedules(dcop_schedules, pia_schedules):
-    
+def print_schedules(dcop_schedules, pia_schedules):    
     i = 0
     while i < len(dcop_schedules):
         schedules1 = dcop_schedules[i]
-        schedules2 = pia_schedules[i]
-
+        
+        if pia_schedules is not None:
+            schedules2 = pia_schedules[i]    
+        
         j = 0
+        print("\n----------------------------DCOP------------------------------\n")
         while j < len(schedules1):
             if schedules1[j].task_count > 0:
                 print(str(schedules1[j]))
                 print("\n")            
             j += 1
-
-        print("\n-------------------------------------------------------------\n")
-
-        j = 0
-        while j < len(schedules2):
-            if schedules2[j].task_count > 0:
-                print(str(schedules2[j]))
-                print("\n")
-            j += 1
+        
+        if pia_schedules is not None:
+            print("\n------------------------------PIA----------------------------\n")
+            j = 0
+            while j < len(schedules2):
+                if schedules2[j].task_count > 0:
+                    print(str(schedules2[j]))
+                    print("\n")
+                j += 1
         
         i += 1
-
-        print("\n-------------------------------------------------------------\n")
 
 
 def calculate_stats(all_schedules):
@@ -77,13 +78,29 @@ def calculate_stats(all_schedules):
         total_tasks_scheduled += len(all_tasks)
         total_make_span += makespan
         
-    avg_makespan = total_make_span / float(len(all_schedules))
-    avg_time_travelled = total_travel_time / float(len(all_schedules))
-    if avg_makespan == float("inf"):
-        print("ERROR: Makespan can not be infinity.")
-        sys.exit(0)
+    if len(all_schedules) != 0:
+        avg_makespan = total_make_span / float(len(all_schedules))
+        avg_time_travelled = total_travel_time / float(len(all_schedules))
+        
+        if avg_makespan == float("inf"):
+            print("ERROR: Makespan can not be infinity.")
+            sys.exit(0)
 
     return avg_makespan, avg_time_travelled, total_tasks_scheduled
+
+def verify_schedules(dcop_schedules):
+    for schedules in dcop_schedules:  
+        total_task = 0
+        all_tasks = set()
+        for stn in schedules:            
+            tasks = stn.get_all_tasks()
+            total_task += len(tasks)
+            all_tasks = all_tasks.union(tasks)
+        
+        if total_task != len(all_tasks):
+            print "Should not happen"
+            print_schedules(dcop_schedules, None)
+            sys.exit(0)    
 
 
 def log_results(dcop_schedules, pia_schedules, beta, alpha, task_count, robot_count, num_of_pgraphs):
@@ -97,8 +114,9 @@ def log_results(dcop_schedules, pia_schedules, beta, alpha, task_count, robot_co
     print("PIA: Number of tasks scheduled: {0}".format(pia_st))
     print("PIA: Average makespan: {0}".format(pia_ms))
     print("PIA: Average time travelled: {0}".format(pia_tt))
+    verify_schedules(dcop_schedules)
     #print_schedules(dcop_schedules, pia_schedules)
-    
+         
 
     connect_str = "dbname='mrta' user='uko' password='uko27415041' host='localhost'"
     conn = psycopg2.connect(connect_str)
@@ -107,10 +125,10 @@ def log_results(dcop_schedules, pia_schedules, beta, alpha, task_count, robot_co
                         INSERT INTO 
                             results(robots, tasks, pgraphs, alpha, beta, 
                                  pia_ms, pia_tt, pia_scheduled_tasks,
-                                 dcop_ms, dcop_tt, dcop_scheduled_tasks)
+                                 dcop_ms, dcop_tt, dcop_scheduled_tasks, last_updated)
                         
-                        VALUES('{0}', '{1}', '{2}', '{3}', '{4}', '{5}', '{6}', '{7}', '{8}', '{9}', '{10}')
-                    """.format(robot_count, task_count, num_of_pgraphs, alpha, beta, pia_ms, pia_tt, pia_st, dcop_ms, dcop_tt, dcop_st)
+                        VALUES('{0}', '{1}', '{2}', '{3}', '{4}', '{5}', '{6}', '{7}', '{8}', '{9}', '{10}', '{11}')
+                    """.format(robot_count, task_count, num_of_pgraphs, alpha, beta, pia_ms, pia_tt, pia_st, dcop_ms, dcop_tt, dcop_st, datetime.now())
 
     execute_sql(conn, insert_record)
 
@@ -138,19 +156,19 @@ if __name__ == "__main__":
         default=100,
         action='store')
 
-    robot_count_arr = [2, 4, 8, 16]
-    robot_count_arr = [2]
-    task_count_arr = [1, 5, 10, 20, 30]
-    task_count_arr = [10]
-    alpha_arr = [0.1, 0.25, 0.5, 0.75, 1.0] 
-    beta_arr = [0.1, 0.25, 0.5, 0.75, 1.0]
+    robot_count_arr = [4, 8]
+    task_count_arr = [1, 5, 10, 20]
+    alpha_arr = [0.25, 0.5, 0.75] 
+    beta_arr = [0.25, 0.5, 0.75]
 
     args = parser.parse_args()
     map_x = args.map_x
     map_y = args.map_y
     num_of_pgraphs = args.num_of_pgraphs
 
-    dg = DataGenerator(map_x, map_y)
+    logger = Logger(LogLevel.DEBUG)
+
+    dg = DataGenerator(map_x, map_y, logger)
     for robot_count in robot_count_arr:
         ori_robots =  dg.generate_robots(robot_count, 1)        
         for task_count in task_count_arr:
@@ -179,16 +197,15 @@ if __name__ == "__main__":
                         for robot in robots2:
                             robot.set_alpha(alpha)
                                                 
-                        pia = PIA(deepcopy(p_graph), robots1)
-                        dcop = DcopAllocator(deepcopy(p_graph))
+                        pia = PIA(deepcopy(p_graph), robots1, logger)
+                        dcop = DcopAllocator(deepcopy(p_graph), logger)
                         
                         pia_schedules = pia.allocate_tasks()
-                        dcop_schedules = dcop.allocate(deepcopy(robots2), True)
+                        dcop_schedules = dcop.allocate(deepcopy(robots2), False)
 
                         all_pia_schedules.append(pia_schedules)
                         all_dcop_schedules.append(dcop_schedules)
 
-                    #log_results(all_pia_schedules, beta, alpha, task_count, robot_count, False)
                     log_results(all_dcop_schedules, all_pia_schedules, beta, alpha, task_count, robot_count, num_of_pgraphs)
                     print("-------------------------------------------------------------\n")
                                    

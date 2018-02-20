@@ -4,12 +4,11 @@ from mrta.msg import AuctionRequest, AuctionAck, Bid, Winner, ScheduledTasks
 from mrta.srv import TerminateRobot, TerminateRobotResponse
 from STN import STN
 from copy import deepcopy
-from Logger import Logger
 
 class Robot():
 
-    def __init__(self, _id, pos_x, pos_y, capability, speed):  
-        self.logger = Logger()
+    def __init__(self, _id, pos_x, pos_y, capability, speed, logger):  
+        self.logger = logger
         self.id = _id
         self.name = "robot" + str(self.id)
         self.init_pos = (pos_x, pos_y)
@@ -99,7 +98,7 @@ class Robot():
                     self._bid_pub.publish(bid_msg)
                     self._winner_received = False
                 
-        tasks = self._tighten_schedule()
+        tasks = self.tighten_schedule()
         self.logger.info("Robot {0}: All tasks from the current auction has been scheduled.".format(self.id))
         self.logger.debug("Robot {0}: Makespan is {1}".format(self.id, self.stn.get_makespan()))
         self.logger.debug("\nRobot {0}: Schedule:\n {1}\n".format(self.id, str(self.stn)))
@@ -173,23 +172,15 @@ class Robot():
     
         self.logger.warn("Robot {0}: Ending auction".format(self.id))        
 
-    def get_scheduled_tasks(self, auc_id):
-        tasks = self._tighten_schedule()
-        self.logger.info("Robot {0}: All tasks from the current auction has been scheduled.".format(self.id))
-        self.logger.debug("Robot {0}: Makespan is {1}".format(self.id, self.stn.get_makespan()))
-        self.logger.debug("\nRobot {0}: Schedule:\n {1}\n".format(self.id, str(self.stn)))
-        self._completed_auctions.append(auc_id)
-        return tasks
-
-    def is_capable(self, task):
-        #if task.type not in self._capability:
-        #    return False
+    def is_capable(self, task):        
+        if task.type not in self._capability:
+            return False        
 
         return True
 
     def find_min_cost(self, task, pc):
         task_count = self.stn.task_count
-        min_cost = float("inf")
+        min_cost = float("inf")         
         min_pos = None
         
         for i in range(task_count + 1):   
@@ -202,10 +193,11 @@ class Robot():
 
             if temp_stn.is_consistent():
                 addition_travel_time = tt_after - tt_before
-                cost = self._compute_cost(temp_stn.get_makespan(), addition_travel_time)
+                ms = temp_stn.get_makespan()
+                cost = self._compute_cost(ms, addition_travel_time)
                 if cost < min_cost:
                     min_cost = cost
-                    min_pos = i        
+                    min_pos = i       
 
         return min_cost, min_pos
 
@@ -222,7 +214,7 @@ class Robot():
         
         self._scheduled_tasks_pub.publish(scheduled_tasks_msg)
 
-    def _tighten_schedule(self):
+    def tighten_schedule(self):
         self.logger.info("Robot {0}: Tightening schedule".format(self.id))
         tasks = []
         for i in range(self.stn.task_count):

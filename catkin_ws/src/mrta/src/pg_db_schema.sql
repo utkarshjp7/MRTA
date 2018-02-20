@@ -9,12 +9,13 @@ CREATE TABLE IF NOT EXISTS results (
     pgraphs                     INTEGER NOT NULL,
 	alpha                       NUMERIC(3,2) NOT NULL,
 	beta                        NUMERIC(3,2) NOT NULL,
-	pia_avg_makespan            DOUBLE PRECISION,
-	pia_avg_time_travelled      DOUBLE PRECISION,
+	pia_ms            			DOUBLE PRECISION,
+	dcop_ms         			DOUBLE PRECISION,
+	pia_tt      				DOUBLE PRECISION,
+	dcop_tt     				DOUBLE PRECISION,  
     pia_scheduled_tasks         INTEGER,
-    dcop_avg_makespan           DOUBLE PRECISION,
-    dcop_avg_time_travelled     DOUBLE PRECISION,  
     dcop_scheduled_tasks        INTEGER,
+	last_updated				TIMESTAMP,				
 
 	PRIMARY KEY (_id)
 );
