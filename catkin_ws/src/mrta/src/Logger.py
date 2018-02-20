@@ -14,3 +14,6 @@ class Logger:
 
     def warn(self, log):
         print log
+
+    def special(self, log):
+        print log

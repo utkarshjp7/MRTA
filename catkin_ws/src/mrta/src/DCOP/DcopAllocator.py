@@ -32,7 +32,7 @@ class DcopAllocator:
         self.logger = Logger()
         self._tasks_preconditions = {}
 
-    def allocate(self, robots):        
+    def allocate(self, robots, collaboration):        
         n = self._p_graph.size()
         if n > 2:
             x = 10
@@ -56,27 +56,21 @@ class DcopAllocator:
             cur_tasks = deepcopy(batch)
             while len(cur_tasks) > 0:
                 self.logger.debug("Creating dcop for {0} tasks.".format(len(cur_tasks)))
-                dcop = self.create_dcop(cur_tasks, robots)
+                dcop = self.create_dcop(cur_tasks, robots, collaboration)                 
+                
+                self.logger.debug("Dcop created. Now solving dcop.")
+                ms = self.solve_dcop(dcop)
+                results = ms.get_results()
+                self.logger.debug("Dcop solved.")
 
-                keepGoing = False
-                for function in dcop.getNodeFunctions():
-                    if len(function.params) == 0:
-                        task = filter(lambda task: task.id == function.function_id, cur_tasks)[0]                        
-                        cur_tasks.remove(task) #remove impossible task
-                    else:
-                        keepGoing = True
-
-                if keepGoing:                    
-                    self.logger.debug("Dcop created. Now solving dcop.")
-                    results = self.solve_dcop(dcop)
-                    self.logger.debug("Dcop solved.")
-
-                    if len(results) == 0:
-                        print("Should never happen")
-                        sys.exit(0)
-                                                    
-                    scheduled_tasks = set()
-                    for robot_id, task_id in results.iteritems():
+                if len(results) == 0:
+                    cur_tasks.clear()
+                    print("Tasks cannot be allocated.")
+                    break                                        
+                                                                                
+                scheduled_tasks = set()
+                for robot_id, task_id in results.iteritems():
+                    if task_id != 0:
                         self.logger.debug("Task {0} has been assigned to robot {1}".format(task_id, robot_id))
                         robot = [robot for robot in robots if robot.id == robot_id][0]
                         scheduled_task = [task for task in cur_tasks if task.id == task_id][0]
@@ -85,9 +79,13 @@ class DcopAllocator:
                         robot.add_task(scheduled_task, pos, self._tasks_preconditions)
                         self.logger.debug("Task has been added.")
                         scheduled_tasks.add(scheduled_task)
-
-                    cur_tasks = cur_tasks.difference(scheduled_tasks)  #remove scheduled tasks
+                
+                cur_tasks = cur_tasks.difference(scheduled_tasks)  #remove scheduled tasks
             
+            for robot in robots:
+                tasks = robot.get_scheduled_tasks(0)
+                self._p_graph.update_tasks(tasks)
+
             for task in batch:                
                 self.logger.debug("Updating precedence graph for task {0}".format(task.id))
                 pc = self._p_graph.update(task)  
@@ -106,19 +104,16 @@ class DcopAllocator:
         ms.setUpdateOnlyAtEnd(False) 
         ms.setIterationsNumber(2)
         ms.solve_complete()
-        #report = ms.getReport()
-        #print report
-        return ms.get_results()
+        return ms
 
-    def create_dcop(self, tasks, robots):
+    def create_dcop(self, tasks, robots, collaboration):
         variables = set()
-    #    dummy_func = NodeFunction(0)
-    #    dummy_func.setFunction(TabularFunction())
-    #    functions = { 0: dummy_func }
-        functions = {}
+        dummy_func = NodeFunction(0)
+        dummy_func.setFunction(TabularFunction())
+        functions = { 0: dummy_func }
         agents = []
         agent = Agent(0)
-    #   agent.addNodeFunction(dummy_func)
+        agent.addNodeFunction(dummy_func)
 
         for task in tasks:
             function = NodeFunction(task.id)
@@ -128,11 +123,9 @@ class DcopAllocator:
 
         for robot in robots:        
             variable = NodeVariable(robot.id)
-        #    dummy_func.addNeighbour(variable)
-        #    variable.addNeighbour(dummy_func)
             
-        #    domain = [dummy_func.function_id]
-            domain = []
+            domain = [dummy_func.function_id]
+
             for task in tasks:
                 if robot.is_capable(task):
                     min_cost, min_pos = robot.find_min_cost(task, self._tasks_preconditions)
@@ -149,10 +142,12 @@ class DcopAllocator:
                         function.addNeighbour(variable)
 
             #if robot can do atleast one task
-            if len(domain) > 0:
-                variable.addDomain(domain)
+            if len(domain) > 1:
+                variable.addDomain(domain)                                 
+                variable.addNeighbour(dummy_func)
+                dummy_func.addNeighbour(variable)
                 variables.add(variable)
-                agent.addNodeVariable(variable)        
+                agent.addNodeVariable(variable)       
 
         for _, function in functions.iteritems():                        
             if len(function.params) > 0:
@@ -163,19 +158,19 @@ class DcopAllocator:
                 all_values = list(product(*param_values))            
                 for values in all_values:
                     arguments = [NodeArgument(v) for v in values]
-                #    utility = float("inf")
-                #    if function.function_id != dummy_func.function_id:
-                    utility = self._calc_function_utility(function, arguments)
-    
+                    utility = 10000000
+                    if function.function_id != dummy_func.function_id:                                                
+                        utility = self._calc_function_utility(function, arguments, collaboration)
                     function.getFunction().addParametersCost(arguments, utility)
 
         agents.append(agent)
         dcop = COP_Instance(variables, list(functions.values()), agents)
         return dcop
 
-    def _calc_function_utility(self, function, arguments):
+    def _calc_function_utility(self, function, arguments, collaboration):
         robot_cost_arr = []
         i = 0
+
         while i < len(arguments):            
             assigned_function_id = arguments[i].value
             if assigned_function_id == function.function_id:
@@ -184,44 +179,15 @@ class DcopAllocator:
                 robot_cost_arr.append(robot_cost)
             i += 1
 
-        function_utility = float("inf")
-        if len(robot_cost_arr) > 0:
-            total_cost = sum(robot_cost_arr)/float(len(robot_cost_arr))
-            function_utility = math.log(total_cost)
+        function_utility = 10000000
+        num_of_robots = len(robot_cost_arr)
+        if collaboration:
+            if num_of_robots > 0:
+                total_cost = sum(robot_cost_arr)/float(len(robot_cost_arr))
+                function_utility = math.log(total_cost)
+        elif num_of_robots == 1:
+                total_cost = sum(robot_cost_arr)/float(len(robot_cost_arr))
+                function_utility = math.log(total_cost)
 
         return function_utility
 
-if __name__ == "__main__":
-
-    if len(sys.argv) < 2:
-        exit(1)
-
-    num_of_datasets = int(sys.argv[1])
-    #num_of_datasets = 1
-
-    for i in range(1, num_of_datasets+1):
-
-        print "Processing dataset " + str(i)
-        print("----------------------------------------------\n\n")
-        data_dir = "../../data/"
-        input_file_path = data_dir + 'dataset' + str(i) + '.pickle'
-        output_file_path = data_dir + 'result/dcop/dataset' + str(i) + '.pickle'
-        #input_file_path = '/home/uko/Developer/MRTA/catkin_ws/src/mrta/data/dataset1.pickle'
-        #output_file_path = '/home/uko/Developer/MRTA/catkin_ws/src/mrta/data/result/dcop/dataset1.pickle'
-        
-        dataset = pickle.load(open(input_file_path))
-        j = 1
-        for p_graph in dataset.p_graphs:
-            print("----------------------------------------------\n\n")
-            print("Allocating precedence graph {0}\n".format(j))
-            robots = deepcopy(dataset.robots)
-            print("Task count for robot {0} is {1}".format(robots[0].id, robots[0].stn.task_count))
-            allocator = DcopAllocator(p_graph)
-            schedules = allocator.allocate(robots)
-            dataset.schedules.append(schedules)
-            j += 1
-            print("\n\n----------------------------------------------")
-
-        print("\n\n----------------------------------------------")
-        print("Creating output file for dataset {0}".format(str(i)))
-        pickle.dump(dataset, open(output_file_path, 'wb'))
