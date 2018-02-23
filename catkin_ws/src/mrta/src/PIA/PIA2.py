@@ -2,11 +2,12 @@ import utils
 
 class PIA(object):
 
-    def __init__(self, p_graph, robots, logger):        
+    def __init__(self, p_graph, robots, tighten_schedule, logger):        
         
         self.logger = logger
         self.p_graph = p_graph
-        self.robots = robots                                      
+        self.robots = robots
+        self._tighten_schedule = tighten_schedule                                      
         self._tasks_preconditions = {}
 
     def allocate_tasks(self):
@@ -62,7 +63,11 @@ class PIA(object):
                 i += 1
 
             for robot in self.robots:
-                tasks = robot.tighten_schedule()
+                if self._tighten_schedule:
+                    tasks = robot.tighten_schedule()
+                else:
+                    tasks = robot.stn.get_all_tasks()
+                    
                 self.logger.debug("Robot {0}: Makespan is {1}".format(robot.id, robot.stn.get_makespan()))
                 self.logger.debug("\nRobot {0}: Schedule:\n {1}\n".format(robot.id, str(robot.stn)))
                 self.p_graph.update_tasks(tasks)

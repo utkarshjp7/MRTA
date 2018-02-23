@@ -181,22 +181,38 @@ if __name__ == "__main__":
                     
                     p_graphs = dg.generate_dataset(task_count, num_of_pgraphs, max_num_of_edges, beta)                                       
                     for p_graph in p_graphs:
-                                                
+                                
                         dcop_robots = deepcopy(ori_robots)
                         for robot in dcop_robots:
                             robot.set_alpha(alpha)                                                                     
                         dcop = DcopAllocator(deepcopy(p_graph), collab, True, logger)                    
                         dcop_schedules = dcop.allocate(dcop_robots, is_hetero)
-                        all_schedules1.append(dcop_schedules)                       
-                        
+                        all_schedules1.append(dcop_schedules)     
+
+                        dcop_robots2 = deepcopy(ori_robots)
+                        for robot in dcop_robots2:
+                            robot.set_alpha(alpha)                                                                     
+                        dcop2 = DcopAllocator(deepcopy(p_graph), collab, False, logger)                    
+                        dcop_schedules2 = dcop2.allocate(dcop_robots2, is_hetero)
+                        all_schedules2.append(dcop_schedules2)                                             
+
+                        """
                         pia_robots = deepcopy(ori_robots)
                         for robot in pia_robots:
                             robot.set_alpha(alpha)   
-                        pia = PIA(deepcopy(p_graph), pia_robots, logger)
+                        pia = PIA(deepcopy(p_graph), pia_robots, True, logger)
                         pia_schedules = pia.allocate_tasks()
-                        all_schedules2.append(pia_schedules)                                   
+                        all_schedules1.append(pia_schedules)   
 
-                        log_results(all_schedules1, all_schedules2, beta, alpha, task_count, robot_count, num_of_pgraphs, "")          
-                    
+                        
+                        pia_robots2 = deepcopy(ori_robots)
+                        for robot in pia_robots2:
+                            robot.set_alpha(alpha)   
+                        pia2 = PIA(deepcopy(p_graph), pia_robots2, False, logger)
+                        pia_schedules2 = pia2.allocate_tasks()
+                        all_schedules2.append(pia_schedules2)                                                      
+                        """
+
+                    log_results(all_schedules1, all_schedules2, beta, alpha, task_count, robot_count, num_of_pgraphs, "dcop")                              
                     print("-------------------------------------------------------------\n")
                                    
