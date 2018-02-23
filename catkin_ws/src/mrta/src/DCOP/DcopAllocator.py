@@ -25,16 +25,16 @@ from MaxSum import MaxSum
 
 class DcopAllocator:
 
-    def __init__(self, p_graph, logger):
+    def __init__(self, p_graph, collab, tighten_schedule, logger):
         self._p_graph = p_graph
-        self._cost_table = {} # { task_id : { robot_id : (utility, stn_pos) } }
+        self._cost_table = {} # { task_id : { robot_id : (cost, stn_pos) } }
         self.logger = logger
         self._tasks_preconditions = {}
+        self._collab = collab
+        self._tighten_schedule = tighten_schedule 
 
-    def allocate(self, robots, collaboration):        
+    def allocate(self, robots, is_hetero):        
         n = self._p_graph.size()
-        if n > 2:
-            x = 10
 
         while True:
             ts = self._p_graph.scheduled_nodes
@@ -54,10 +54,14 @@ class DcopAllocator:
                         
             cur_tasks = deepcopy(batch)
             while len(cur_tasks) > 0:
+                self._cost_table = {}
                 self.logger.debug("Creating dcop for {0} tasks.".format(len(cur_tasks)))
-                dcop = self.create_dcop(cur_tasks, robots, collaboration)                 
-                
+                for task in cur_tasks:
+                    self.logger.debug(str(task))
+
+                dcop = self.create_dcop(cur_tasks, robots, is_hetero)                                 
                 self.logger.debug("Dcop created. Now solving dcop.")
+                self.logger.debug("Cost Table: {0}".format(str(self._cost_table)))
                 ms = self.solve_dcop(dcop)
                 results = ms.get_results()
                 self.logger.debug("Dcop solved.")
@@ -75,40 +79,34 @@ class DcopAllocator:
                     sys.exit(0)
 
                 for task_id in task_ids:
-                    if task_id != 0:
-                        assigned_robots = [r for r,t in results.iteritems() if t == task_id]
-                        robot_id = assigned_robots[-1]
-                        self.logger.debug("Task {0} has been assigned to robot {1}".format(task_id, robot_id))
-                        robot = [robot for robot in robots if robot.id == robot_id][0]
-                        scheduled_task = [task for task in cur_tasks if task.id == task_id][0]
-                        pos = self._cost_table[scheduled_task.id][robot.id][1]
-                        self.logger.debug("Adding task {0} to robot {1}'s STN at position {2}".format(task_id, robot_id, pos))
-                        robot.add_task(scheduled_task, pos, self._tasks_preconditions)
-                        self.logger.debug("Task has been added.")
-                        scheduled_tasks.add(scheduled_task)
-
-                """
-                scheduled_tasks = set()
-                for robot_id, task_id in results.iteritems():
-                    if task_id != 0:
-                        self.logger.debug("Task {0} has been assigned to robot {1}".format(task_id, robot_id))
-                        robot = [robot for robot in robots if robot.id == robot_id][0]
-                        scheduled_task = [task for task in cur_tasks if task.id == task_id][0]
-                        pos = self._cost_table[scheduled_task.id][robot.id][1]
-                        self.logger.debug("Adding task {0} to robot {1}'s STN at position {2}".format(task_id, robot_id, pos))
-                        robot.add_task(scheduled_task, pos, self._tasks_preconditions)
-                        self.logger.debug("Task has been added.")
-                        scheduled_tasks.add(scheduled_task)
-                """
+                    if task_id != 0: 
+                        robot_ids = [r for r,t in results.iteritems() if t == task_id]
+                        if not self._collab:
+                            robot_ids = [robot_ids[-1]]
+                        
+                        for robot_id in robot_ids:
+                            self.logger.debug("Task {0} has been assigned to robot {1}".format(task_id, robot_id))
+                            robot = [robot for robot in robots if robot.id == robot_id][0]
+                            scheduled_task = [task for task in cur_tasks if task.id == task_id][0]
+                            pos = self._cost_table[scheduled_task.id][robot.id][1]
+                            self.logger.debug("Adding task {0} to robot {1}'s STN at position {2}".format(task_id, robot_id, pos))
+                            robot.add_task(scheduled_task, pos, self._tasks_preconditions)
+                            self.logger.debug("Task has been added.")
+                            scheduled_tasks.add(scheduled_task)
                 
                 cur_tasks = cur_tasks.difference(scheduled_tasks)  #remove scheduled tasks
-            
+
             for robot in robots:
-                tasks = robot.tighten_schedule()
+                tasks = set()
+                if self._tighten_schedule:
+                    tasks = robot.tighten_schedule()                                       
+                else:                    
+                    tasks = robot.stn.get_all_tasks()
+
+                self._p_graph.update_tasks(tasks)
                 self.logger.debug("Robot {0}: Makespan is {1}".format(robot.id, robot.stn.get_makespan()))
                 self.logger.debug("\nRobot {0}: Schedule:\n {1}\n".format(robot.id, str(robot.stn)))
-                self._p_graph.update_tasks(tasks)
-
+            
             for task in batch:                
                 self.logger.debug("Updating precedence graph for task {0}".format(task.id))
                 pc = self._p_graph.update(task)  
@@ -129,7 +127,7 @@ class DcopAllocator:
         ms.solve_complete()
         return ms
 
-    def create_dcop(self, tasks, robots, collaboration):
+    def create_dcop(self, tasks, robots, is_hetero):
         variables = set()
         dummy_func = NodeFunction(0)
         dummy_func.setFunction(TabularFunction())
@@ -145,24 +143,25 @@ class DcopAllocator:
             agent.addNodeFunction(function)
 
         for robot in robots:        
-            variable = NodeVariable(robot.id)
-            
+            variable = NodeVariable(robot.id)            
             domain = [dummy_func.function_id]
 
             for task in tasks:
-                if robot.is_capable(task):
-                    min_cost, min_pos = robot.find_min_cost(task, self._tasks_preconditions)
-                    if task.id in self._cost_table:
-                        self._cost_table[task.id][robot.id] = (min_cost, min_pos)
-                    else:
-                        self._cost_table[task.id] = {robot.id: (min_cost, min_pos)}
+                if is_hetero and not robot.is_capable(task):
+                    continue
 
-                    #if robot can fit this task in its schedule
-                    if min_cost < float("inf"):
-                        function = functions[task.id]
-                        domain.append(function.function_id)
-                        variable.addNeighbour(function)
-                        function.addNeighbour(variable)
+                min_cost, min_pos = robot.find_min_cost(task, self._tasks_preconditions)
+                if task.id in self._cost_table:
+                    self._cost_table[task.id][robot.id] = (min_cost, min_pos)
+                else:
+                    self._cost_table[task.id] = {robot.id: (min_cost, min_pos)}
+
+                #if robot can fit this task in its schedule
+                if min_cost < float("inf"):
+                    function = functions[task.id]
+                    domain.append(function.function_id)
+                    variable.addNeighbour(function)
+                    function.addNeighbour(variable)
 
             #if robot can do atleast one task
             if len(domain) > 1:
@@ -183,14 +182,14 @@ class DcopAllocator:
                     arguments = [NodeArgument(v) for v in values]
                     utility = 10000000
                     if function.function_id != dummy_func.function_id:                                                
-                        utility = self._calc_function_utility(function, arguments, collaboration)
+                        utility = self._calc_function_utility(function, arguments)
                     function.getFunction().addParametersCost(arguments, utility)
 
         agents.append(agent)
         dcop = COP_Instance(variables, list(functions.values()), agents)
         return dcop
 
-    def _calc_function_utility(self, function, arguments, collaboration):
+    def _calc_function_utility(self, function, arguments):
         robot_cost_arr = []
         i = 0
 
@@ -205,7 +204,7 @@ class DcopAllocator:
         function_utility = 10000000
 
         num_of_robots = len(robot_cost_arr)
-        if collaboration:
+        if self._collab:
             if num_of_robots > 0:
                 total_cost = self._calc_combined_cost(robot_cost_arr)
                 function_utility = math.log(total_cost)

@@ -56,9 +56,11 @@ class DataGenerator:
 
     def generate_precedence_graph(self, tasks, max_num_of_edges, beta):
         p_graph = PrecedenceGraph(tasks, beta)
-        num_of_edges = 0
-        if max_num_of_edges > 0:
-            num_of_edges = random.randint(0, max_num_of_edges)
+        min_num_of_edges = len(tasks) / 2
+        num_of_edges = min_num_of_edges
+
+        if max_num_of_edges > min_num_of_edges:
+            num_of_edges = random.randint(min_num_of_edges, max_num_of_edges)
 
         i = 0
         while i < num_of_edges:

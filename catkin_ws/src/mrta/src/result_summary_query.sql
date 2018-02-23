@@ -3,12 +3,12 @@
 SELECT 
     robots,
     tasks,  
-    round(CAST(avg(pia_ms) as NUMERIC), 4) AS PIA_MS_AVG, 
-    round(CAST(avg(dcop_ms) as NUMERIC), 4) AS DCOP_MS_AVG, 
-    round(CAST(avg(pia_tt) as NUMERIC), 4) AS PIA_TT_AVG,
-    round(CAST(avg(dcop_tt) as NUMERIC), 4) AS DCOP_TT_AVG,
-    sum(pia_scheduled_tasks) AS PIA_TOTAL_TASKS, 
-    sum(dcop_scheduled_tasks) AS DCOP_TOTAL_TASKS
+    round(CAST(avg(ms1) as NUMERIC), 4) AS MS1_AVG, 
+    round(CAST(avg(ms2) as NUMERIC), 4) AS MS2_AVG, 
+    round(CAST(avg(tt1) as NUMERIC), 4) AS TT1_AVG,
+    round(CAST(avg(tt2) as NUMERIC), 4) AS TT2_AVG,
+    sum(scheduled_tasks1) AS TOTAL_TASKS1, 
+    sum(scheduled_tasks2) AS TOTAL_TASKS2
 FROM results 
 GROUP BY robots, tasks
 ORDER BY robots, tasks;

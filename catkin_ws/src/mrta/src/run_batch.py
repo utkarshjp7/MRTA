@@ -28,24 +28,22 @@ def execute_sql(conn, sql):
     conn.commit()
     cursor.close()    
 
-def print_schedules(dcop_schedules, pia_schedules):    
+def print_schedules(all_schedules1, all_schedules2):    
     i = 0
-    while i < len(dcop_schedules):
-        schedules1 = dcop_schedules[i]
-        
-        if pia_schedules is not None:
-            schedules2 = pia_schedules[i]    
-        
+    while i < len(all_schedules1):        
+         
+        schedules1 = all_schedules1[i]
         j = 0
-        print("\n----------------------------DCOP------------------------------\n")
+        print("\n-------------------------1---------------------------------\n")
         while j < len(schedules1):
             if schedules1[j].task_count > 0:
                 print(str(schedules1[j]))
                 print("\n")            
             j += 1
         
-        if pia_schedules is not None:
-            print("\n------------------------------PIA----------------------------\n")
+        if len(all_schedules2) > 0:
+            schedules2 = all_schedules2[i]  
+            print("\n------------------------------2----------------------------\n")
             j = 0
             while j < len(schedules2):
                 if schedules2[j].task_count > 0:
@@ -88,8 +86,8 @@ def calculate_stats(all_schedules):
 
     return avg_makespan, avg_time_travelled, total_tasks_scheduled
 
-def verify_schedules(dcop_schedules):
-    for schedules in dcop_schedules:  
+def verify_no_collaboration(all_schedules):
+    for schedules in all_schedules:  
         total_task = 0
         all_tasks = set()
         for stn in schedules:            
@@ -99,24 +97,16 @@ def verify_schedules(dcop_schedules):
         
         if total_task != len(all_tasks):
             print "Should not happen"
-            print_schedules(dcop_schedules, None)
+            print_schedules(all_schedules, None)
             sys.exit(0)    
 
+def log_results(all_schedules1, all_schedules2, beta, alpha, task_count, robot_count, num_of_pgraphs, comment):
+    ms1, tt1, st1 = calculate_stats(all_schedules1)
+    ms2, tt2, st2 = calculate_stats(all_schedules2)
 
-def log_results(dcop_schedules, pia_schedules, beta, alpha, task_count, robot_count, num_of_pgraphs):
-    dcop_ms, dcop_tt, dcop_st = calculate_stats(dcop_schedules)
-    pia_ms, pia_tt, pia_st = calculate_stats(pia_schedules)
-
-    print("DCOP: Number of tasks scheduled: {0}".format(dcop_st))
-    print("DCOP: Average makespan: {0}".format(dcop_ms))
-    print("DCOP: Average time travelled: {0}".format(dcop_tt))
-
-    print("PIA: Number of tasks scheduled: {0}".format(pia_st))
-    print("PIA: Average makespan: {0}".format(pia_ms))
-    print("PIA: Average time travelled: {0}".format(pia_tt))
-    verify_schedules(dcop_schedules)
-    #print_schedules(dcop_schedules, pia_schedules)
-         
+    print("Number of tasks scheduled: {0} and {1}".format(st1, st2))
+    print("Average makespan: {0} and {1}".format(ms1, ms2))
+    print("Average time travelled: {0} and {1}".format(tt1, tt2))         
 
     connect_str = "dbname='mrta' user='uko' password='uko27415041' host='localhost'"
     conn = psycopg2.connect(connect_str)
@@ -124,49 +114,51 @@ def log_results(dcop_schedules, pia_schedules, beta, alpha, task_count, robot_co
     insert_record = """
                         INSERT INTO 
                             results(robots, tasks, pgraphs, alpha, beta, 
-                                 pia_ms, pia_tt, pia_scheduled_tasks,
-                                 dcop_ms, dcop_tt, dcop_scheduled_tasks, last_updated)
+                                 ms1, tt1, scheduled_tasks1,
+                                 ms2, tt2, scheduled_tasks2, last_updated, comment)
                         
-                        VALUES('{0}', '{1}', '{2}', '{3}', '{4}', '{5}', '{6}', '{7}', '{8}', '{9}', '{10}', '{11}')
-                    """.format(robot_count, task_count, num_of_pgraphs, alpha, beta, pia_ms, pia_tt, pia_st, dcop_ms, dcop_tt, dcop_st, datetime.now())
+                        VALUES('{0}', '{1}', '{2}', '{3}', '{4}', '{5}', '{6}', '{7}', '{8}', '{9}', '{10}', '{11}', '{12}')
+                    """.format(robot_count, task_count, num_of_pgraphs, alpha, beta, ms1, tt1, st1, ms2, tt2, st2, datetime.now(), comment)
 
     execute_sql(conn, insert_record)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="MRTA Algorithms")
 
-    parser.add_argument('--pgraphs',
+    parser.add_argument('-pgraphs',
         help='Number of precedence graphs',
         dest='num_of_pgraphs',
         type=int,
         default=5,
         action='store')
 
-    parser.add_argument('--x',
-        help='X Dimention of Map',
-        dest='map_x',
-        type=int,
-        default=100,
-        action='store')
+    parser.add_argument('--collab',
+        help='No collobaration between robots.',
+        dest='collab',
+        default=False,
+        action='store_true'
+	)
 
-    parser.add_argument('--y',
-        help='Y Dimention of Map',
-        dest='map_y',
-        type=int,
-        default=100,
-        action='store')
+    parser.add_argument('--hetero',
+        help='Run simulation with heterogeneous robots.',
+        dest='is_hetero',
+        default=False,
+        action='store_true'
+	)
 
-    robot_count_arr = [4, 8]
-    task_count_arr = [1, 5, 10, 20]
+    robot_count_arr = [2, 4]
+    task_count_arr = [5, 10]
     alpha_arr = [0.25, 0.5, 0.75] 
     beta_arr = [0.25, 0.5, 0.75]
+    map_x = 100
+    map_y = 100
 
     args = parser.parse_args()
-    map_x = args.map_x
-    map_y = args.map_y
     num_of_pgraphs = args.num_of_pgraphs
+    collab = args.collab
+    is_hetero = args.is_hetero
 
-    logger = Logger(LogLevel.DEBUG)
+    logger = Logger(LogLevel.OFF[0])
 
     dg = DataGenerator(map_x, map_y, logger)
     for robot_count in robot_count_arr:
@@ -176,8 +168,8 @@ if __name__ == "__main__":
             max_num_of_edges = min(3 * task_count, max_possible_edges)            
             for alpha in alpha_arr:
                 for beta in beta_arr:
-                    all_pia_schedules = []
-                    all_dcop_schedules = []
+                    all_schedules1 = []
+                    all_schedules2 = []
 
                     print("\n-------------------------------------------------------------")
                     print("Robot count: {0}".format(robot_count))
@@ -189,23 +181,22 @@ if __name__ == "__main__":
                     
                     p_graphs = dg.generate_dataset(task_count, num_of_pgraphs, max_num_of_edges, beta)                                       
                     for p_graph in p_graphs:
-                        
-                        robots1 = deepcopy(ori_robots)
-                        robots2 = deepcopy(ori_robots)
-                        for robot in robots1:
-                            robot.set_alpha(alpha)
-                        for robot in robots2:
-                            robot.set_alpha(alpha)
                                                 
-                        pia = PIA(deepcopy(p_graph), robots1, logger)
-                        dcop = DcopAllocator(deepcopy(p_graph), logger)
+                        dcop_robots = deepcopy(ori_robots)
+                        for robot in dcop_robots:
+                            robot.set_alpha(alpha)                                                                     
+                        dcop = DcopAllocator(deepcopy(p_graph), collab, True, logger)                    
+                        dcop_schedules = dcop.allocate(dcop_robots, is_hetero)
+                        all_schedules1.append(dcop_schedules)                       
                         
+                        pia_robots = deepcopy(ori_robots)
+                        for robot in pia_robots:
+                            robot.set_alpha(alpha)   
+                        pia = PIA(deepcopy(p_graph), pia_robots, logger)
                         pia_schedules = pia.allocate_tasks()
-                        dcop_schedules = dcop.allocate(deepcopy(robots2), False)
+                        all_schedules2.append(pia_schedules)                                   
 
-                        all_pia_schedules.append(pia_schedules)
-                        all_dcop_schedules.append(dcop_schedules)
-
-                    log_results(all_dcop_schedules, all_pia_schedules, beta, alpha, task_count, robot_count, num_of_pgraphs)
+                        log_results(all_schedules1, all_schedules2, beta, alpha, task_count, robot_count, num_of_pgraphs, "")          
+                    
                     print("-------------------------------------------------------------\n")
                                    
