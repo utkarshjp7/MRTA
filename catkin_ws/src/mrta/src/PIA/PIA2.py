@@ -2,12 +2,13 @@ import utils
 
 class PIA(object):
 
-    def __init__(self, p_graph, robots, tighten_schedule, logger):        
+    def __init__(self, p_graph, robots, tighten_schedule, use_prio, logger):        
         
         self.logger = logger
         self.p_graph = p_graph
         self.robots = robots
-        self._tighten_schedule = tighten_schedule                                      
+        self._tighten_schedule = tighten_schedule                   
+        self._use_prio = use_prio                   
         self._tasks_preconditions = {}
 
     def allocate_tasks(self):
@@ -28,8 +29,10 @@ class PIA(object):
                 self.logger.debug("All tasks have been allocated.") 
                 break          
 
-            c = max([ node.priority for node in tl ]) if tl else 0
-            t_auct = [ node.task for node in tf if node.priority > c ]        
+            t_auct = [node.task for node in tf]
+            if self._use_prio:
+                c = max([ node.priority for node in tl ]) if tl else 0
+                t_auct = [ node.task for node in tf if node.priority > c ]        
             
             for v in tf:
                 self.logger.debug("First layer: Task {0} with priority {1}".format(v.task.id, v.priority))

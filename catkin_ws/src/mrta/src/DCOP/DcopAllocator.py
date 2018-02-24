@@ -25,13 +25,14 @@ from MaxSum import MaxSum
 
 class DcopAllocator:
 
-    def __init__(self, p_graph, collab, tighten_schedule, logger):
+    def __init__(self, p_graph, collab, tighten_schedule, use_prio, logger):
         self._p_graph = p_graph
         self._cost_table = {} # { task_id : { robot_id : (cost, stn_pos) } }
         self.logger = logger
         self._tasks_preconditions = {}
         self._collab = collab
         self._tighten_schedule = tighten_schedule 
+        self._use_prio = use_prio
 
     def allocate(self, robots, is_hetero):        
         n = self._p_graph.size()
@@ -49,8 +50,10 @@ class DcopAllocator:
                 self.logger.debug("All tasks have been scheduled.")
                 break
 
-            c = max([ node.priority for node in tl ]) if tl else 0
-            batch = set([ node.task for node in tf if node.priority > c ])
+            batch = set([node.task for node in tf])
+            if self._use_prio:
+                c = max([ node.priority for node in tl ]) if tl else 0
+                batch = set([ node.task for node in tf if node.priority > c ])
                         
             cur_tasks = deepcopy(batch)
             while len(cur_tasks) > 0:

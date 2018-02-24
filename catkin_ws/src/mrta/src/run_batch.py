@@ -108,7 +108,7 @@ def log_results(all_schedules1, all_schedules2, beta, alpha, task_count, robot_c
     print("Average makespan: {0} and {1}".format(ms1, ms2))
     print("Average time travelled: {0} and {1}".format(tt1, tt2))         
 
-    connect_str = "dbname='mrta' user='uko' password='uko27415041' host='localhost'"
+    connect_str = "dbname='mrta' user='perldev1' password='perldev1' host='localhost'"
     conn = psycopg2.connect(connect_str)
    
     insert_record = """
