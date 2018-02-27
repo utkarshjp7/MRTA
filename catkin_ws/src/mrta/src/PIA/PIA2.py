@@ -7,8 +7,7 @@ import utils
 
 class PIA(object):
 
-    def __init__(self, p_graph, robots, tighten_schedule, use_prio, logger):        
-        
+    def __init__(self, p_graph, robots, logger, tighten_schedule=True, use_prio=True):        
         self.logger = logger
         self.p_graph = p_graph
         self.robots = robots
