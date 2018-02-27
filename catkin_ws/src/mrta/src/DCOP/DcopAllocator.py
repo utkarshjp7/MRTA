@@ -4,6 +4,7 @@ import sys
 import os
 from itertools import product
 from copy import deepcopy
+import random
 
 cur_dir = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(os.path.abspath(cur_dir + "/.."))
@@ -25,7 +26,7 @@ from MaxSum import MaxSum
 
 class DcopAllocator:
 
-    def __init__(self, p_graph, collab, tighten_schedule, use_prio, logger):
+    def __init__(self, p_graph, logger, collab=False, tighten_schedule=False, use_prio=False):
         self._p_graph = p_graph
         self._cost_table = {} # { task_id : { robot_id : (cost, stn_pos) } }
         self.logger = logger
@@ -34,7 +35,7 @@ class DcopAllocator:
         self._tighten_schedule = tighten_schedule 
         self._use_prio = use_prio
 
-    def allocate(self, robots, is_hetero):        
+    def allocate(self, robots, is_hetero=False):        
         n = self._p_graph.size()
 
         while True:
@@ -126,7 +127,7 @@ class DcopAllocator:
     def solve_dcop(self, dcop):
         ms = MaxSum(dcop, "min")
         ms.setUpdateOnlyAtEnd(False) 
-        ms.setIterationsNumber(2)
+        ms.setIterationsNumber(3)
         ms.solve_complete()
         return ms
 
@@ -135,15 +136,14 @@ class DcopAllocator:
         dummy_func = NodeFunction(0)
         dummy_func.setFunction(TabularFunction())
         functions = { 0: dummy_func }
-        agents = []
-        agent = Agent(0)
-        agent.addNodeFunction(dummy_func)
+        agents = [Agent(robot.id) for robot in robots]
+        random.choice(agents).addNodeFunction(dummy_func)
 
         for task in tasks:
             function = NodeFunction(task.id)
             function.setFunction(TabularFunction())
             functions[task.id] = function
-            agent.addNodeFunction(function)
+            random.choice(agents).addNodeFunction(function)
 
         for robot in robots:        
             variable = NodeVariable(robot.id)            
@@ -172,6 +172,7 @@ class DcopAllocator:
                 variable.addNeighbour(dummy_func)
                 dummy_func.addNeighbour(variable)
                 variables.add(variable)
+                agent = [agent for agent in agents if agent.agent_id == robot.id][0]
                 agent.addNodeVariable(variable)       
 
         for _, function in functions.iteritems():                        
@@ -188,7 +189,6 @@ class DcopAllocator:
                         utility = self._calc_function_utility(function, arguments)
                     function.getFunction().addParametersCost(arguments, utility)
 
-        agents.append(agent)
         dcop = COP_Instance(variables, list(functions.values()), agents)
         return dcop
 

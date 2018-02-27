@@ -187,8 +187,8 @@ class NodeVariable:
             returns the actual value of the variable
             if index_actual_argument is equal -1, the variable has not been set
         '''
-        if self.index_actual_argument == -1:
-            print('The variable ', self.toString(), ' has not been set')
+        #if self.index_actual_argument == -1:
+        #    print('The variable ', self.toString(), ' has not been set')
         return self.getArgument(self.index_actual_argument)
             
     def getId(self):

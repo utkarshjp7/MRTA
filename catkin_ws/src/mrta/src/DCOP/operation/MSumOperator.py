@@ -211,11 +211,11 @@ class MSumOperator:
                     '''
                     qmessages.append(value)
     
-                self.report = self.report + " QMessage: "
-                
-                for i in range(variable.size()):
-                    self.report = self.report = self.report + str(value.getMessage().getValue(i)) + ","
+                    self.report = self.report + " QMessage: "
                     
+                    for i in range(variable.size()):
+                        self.report = self.report = self.report + str(value.getMessage().getValue(i)) + ","
+                        
                 self.report = self.report + "\n\n"
            
         messager = self.type.Op(f, x, f.getFunction(), qmessages)
