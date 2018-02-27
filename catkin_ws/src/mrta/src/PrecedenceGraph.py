@@ -25,7 +25,7 @@ class Node:
         s = "Task: " + str(self.task) + ", "
         s += "Children: [ "
         for c in self.children:            
-            s += str(c.task) + ","
+            s += str(c.task.id) + ","
         s += " ], "
         s += "Priority: " + str(self.priority)
 

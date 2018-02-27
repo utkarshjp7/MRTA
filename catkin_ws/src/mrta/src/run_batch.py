@@ -4,6 +4,7 @@ import pickle
 import argparse
 from copy import deepcopy
 from datetime import datetime
+import utils
 import psycopg2
 
 cur_dir = os.path.dirname(os.path.realpath(__file__))
@@ -52,7 +53,6 @@ def print_schedules(all_schedules1, all_schedules2):
                 j += 1
         
         i += 1
-
 
 def calculate_stats(all_schedules):
     avg_makespan = 0
@@ -106,7 +106,7 @@ def log_results(all_schedules1, all_schedules2, beta, alpha, task_count, robot_c
 
     print("Number of tasks scheduled: {0} and {1}".format(st1, st2))
     print("Average makespan: {0} and {1}".format(ms1, ms2))
-    print("Average time travelled: {0} and {1}".format(tt1, tt2))         
+    print("Average time travelled: {0} and {1}".format(tt1, tt2))                
 
     connect_str = "dbname='mrta' user='perldev1' password='perldev1' host='localhost'"
     conn = psycopg2.connect(connect_str)
@@ -181,38 +181,37 @@ if __name__ == "__main__":
                     
                     p_graphs = dg.generate_dataset(task_count, num_of_pgraphs, max_num_of_edges, beta)                                       
                     for p_graph in p_graphs:
-                                
+                                                        
                         dcop_robots = deepcopy(ori_robots)
                         for robot in dcop_robots:
                             robot.set_alpha(alpha)                                                                     
                         dcop = DcopAllocator(deepcopy(p_graph), collab, True, logger)                    
                         dcop_schedules = dcop.allocate(dcop_robots, is_hetero)
                         all_schedules1.append(dcop_schedules)     
-
+                        
                         dcop_robots2 = deepcopy(ori_robots)
                         for robot in dcop_robots2:
                             robot.set_alpha(alpha)                                                                     
                         dcop2 = DcopAllocator(deepcopy(p_graph), collab, False, logger)                    
                         dcop_schedules2 = dcop2.allocate(dcop_robots2, is_hetero)
                         all_schedules2.append(dcop_schedules2)                                             
-
+                    
                         """
                         pia_robots = deepcopy(ori_robots)
                         for robot in pia_robots:
                             robot.set_alpha(alpha)   
-                        pia = PIA(deepcopy(p_graph), pia_robots, True, logger)
+                        pia = PIA(deepcopy(p_graph), pia_robots, True, False, logger)
                         pia_schedules = pia.allocate_tasks()
                         all_schedules1.append(pia_schedules)   
-
-                        
+                                                
                         pia_robots2 = deepcopy(ori_robots)
                         for robot in pia_robots2:
                             robot.set_alpha(alpha)   
-                        pia2 = PIA(deepcopy(p_graph), pia_robots2, False, logger)
+                        pia2 = PIA(deepcopy(p_graph), pia_robots2, False, False, logger)
                         pia_schedules2 = pia2.allocate_tasks()
-                        all_schedules2.append(pia_schedules2)                                                      
-                        """
+                        all_schedules2.append(pia_schedules2)
+                        """                                                                              
 
-                    log_results(all_schedules1, all_schedules2, beta, alpha, task_count, robot_count, num_of_pgraphs, "dcop")                              
+                    log_results(all_schedules1, all_schedules2, beta, alpha, task_count, robot_count, num_of_pgraphs, "dcop")                                                                   
                     print("-------------------------------------------------------------\n")
                                    

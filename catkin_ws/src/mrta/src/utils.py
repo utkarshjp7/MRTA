@@ -2,10 +2,38 @@ import os
 import sys
 import numpy as np
 from mrta.msg import Task as Task_Msg
+from Task import Task
 
 cur_dir = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(os.path.abspath(cur_dir + "/.."))
-from Task import Task
+
+def print_pgraph(pgraph):
+    print(" ")
+
+    for vertex in pgraph:
+        print str(vertex)
+
+    print "--------First Layer----------"
+    tf = pgraph.first_layer
+
+    for v in tf:
+        print str(v)
+
+    print "--------Second Layer----------"
+    tl = pgraph.second_layer
+
+    for v in tl:
+        print str(v)
+
+    print "--------Hidden Layer----------"
+    th = pgraph.hidden_layer
+
+    for v in th:
+        print str(v)    
+    
+    print(" ")
+    print("------------------------------------")
+    print(" ")
 
 def compute_distance(vecA, vecB):
     vectorAB = np.subtract(vecB, vecA)
@@ -35,5 +63,4 @@ def create_task(task_msg):
     task = Task(task_msg.est, task_msg.lft, task_msg.duration, task_msg.id, task_msg.location[0], task_msg.location[1])
     task.start_time = task_msg.start_time
     task.finish_time = task_msg.finish_time
-    return task
-
+    return task    

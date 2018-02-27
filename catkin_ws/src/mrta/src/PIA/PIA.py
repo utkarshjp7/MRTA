@@ -1,7 +1,12 @@
+import os
+import sys
 import rospy
-import utils
 from mrta.msg import AuctionRequest, AuctionAck, Task, Bid, Winner, ScheduledTasks
 from mrta.srv import TerminateRobot
+
+cur_dir = os.path.dirname(os.path.realpath(__file__))
+sys.path.append(os.path.abspath(cur_dir + "/.."))
+import utils
 
 class PIA(object):
 
