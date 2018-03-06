@@ -246,7 +246,7 @@ class Agent:
         
         for nodeVariable in self.getVariables():
 
-            zMessage = self.op.updateZ(nodeVariable, self.postservice, test)
+            zMessage = self.op.updateZ(nodeVariable, self.postservice)
             zMessages[nodeVariable.id_var] = zMessage.message
 
             self.report = self.report + str(datetime.datetime.now())[:23] + "\t\t" + self.op.getReport()
