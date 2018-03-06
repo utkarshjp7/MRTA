@@ -1,11 +1,13 @@
 import sys, os
 
-sys.path.append(os.path.abspath('../maxsum/'))
-sys.path.append(os.path.abspath('../solver/'))
-sys.path.append(os.path.abspath('../system/'))
-sys.path.append(os.path.abspath('../graph/'))
-sys.path.append(os.path.abspath('../misc/'))
-sys.path.append(os.path.abspath('../function/'))
+cur_dir = os.path.dirname(os.path.realpath(__file__))
+
+sys.path.append(os.path.abspath(cur_dir + '/../maxsum'))
+sys.path.append(os.path.abspath(cur_dir + '/../solver'))
+sys.path.append(os.path.abspath(cur_dir + '/../system'))
+sys.path.append(os.path.abspath(cur_dir + '/../graph'))
+sys.path.append(os.path.abspath(cur_dir + '/../misc'))
+sys.path.append(os.path.abspath(cur_dir + '/../function'))
 
 from Agent import Agent
 from NodeVariable import NodeVariable
@@ -14,6 +16,80 @@ from TabularFunction import TabularFunction
 from NodeArgument import NodeArgument
 from COP_Instance import COP_Instance
 from MaxSum import MaxSum
+
+def create_DCop2():
+    
+    nodeVariables = list()
+    nodeFunctions = list()    
+
+    agent1 = Agent(1)
+    agent2 = Agent(2)  
+    agent3 = Agent(1)
+    agent4 = Agent(2)  
+    agents = [agent1, agent2, agent3, agent4]
+
+    nodeVariable1 = NodeVariable(1)
+    nodeVariable2 = NodeVariable(2)
+    nodeVariable3 = NodeVariable(3)
+    nodeVariable4 = NodeVariable(4)
+
+    nodeVariable1.addDomain([1, -1])
+    nodeVariable2.addDomain([2, -2]) 
+    nodeVariable3.addDomain([1, 2, -1, -2])
+    nodeVariable4.addDomain([2, -2])
+
+    nodefunction1 = NodeFunction(1)
+    nodefunction2 = NodeFunction(2)
+
+    nodefunction1.setFunction(TabularFunction())
+    nodefunction2.setFunction(TabularFunction())
+
+    nodeVariable1.addNeighbour(nodefunction1)
+    nodeVariable2.addNeighbour(nodefunction2)
+    nodeVariable3.addNeighbour(nodefunction1)
+    nodeVariable3.addNeighbour(nodefunction2)
+    nodeVariable4.addNeighbour(nodefunction2)    
+
+    nodefunction1.addNeighbour(nodeVariable1)
+    nodefunction1.addNeighbour(nodeVariable3)
+    nodefunction2.addNeighbour(nodeVariable2)
+    nodefunction2.addNeighbour(nodeVariable3)
+    nodefunction2.addNeighbour(nodeVariable4)                                                
+
+    nodefunction1.getFunction().addParametersCost([NodeArgument(-1), NodeArgument(-1)], -100000)
+    nodefunction1.getFunction().addParametersCost([NodeArgument(-1), NodeArgument(1)], 15)
+    nodefunction1.getFunction().addParametersCost([NodeArgument(1), NodeArgument(-1)], 10)
+    nodefunction1.getFunction().addParametersCost([NodeArgument(1), NodeArgument(1)], -100000)
+
+    nodefunction2.getFunction().addParametersCost([NodeArgument(-2), NodeArgument(-2), NodeArgument(-2)], -100000)
+    nodefunction2.getFunction().addParametersCost([NodeArgument(-2), NodeArgument(-2), NodeArgument(2)], 2)
+    nodefunction2.getFunction().addParametersCost([NodeArgument(-2), NodeArgument(2), NodeArgument(-2)], 16)
+    nodefunction2.getFunction().addParametersCost([NodeArgument(2), NodeArgument(-2), NodeArgument(-2)], 17)
+    nodefunction2.getFunction().addParametersCost([NodeArgument(2), NodeArgument(2), NodeArgument(-2)], -100000)
+    nodefunction2.getFunction().addParametersCost([NodeArgument(-2), NodeArgument(2), NodeArgument(2)], -100000)
+    nodefunction2.getFunction().addParametersCost([NodeArgument(2), NodeArgument(-2), NodeArgument(2)], -100000)
+    nodefunction2.getFunction().addParametersCost([NodeArgument(2), NodeArgument(2), NodeArgument(2)], -100000)    
+
+    nodeVariables.append(nodeVariable1)
+    nodeVariables.append(nodeVariable2)
+    nodeVariables.append(nodeVariable3)
+    nodeVariables.append(nodeVariable4)
+
+    nodeFunctions.append(nodefunction1) 
+    nodeFunctions.append(nodefunction2) 
+
+    agent1.addNodeVariable(nodeVariable1)
+    agent2.addNodeVariable(nodeVariable2)
+    agent3.addNodeVariable(nodeVariable3)
+    agent4.addNodeVariable(nodeVariable4)
+
+    agent1.addNodeFunction(nodefunction1)  
+    agent2.addNodeFunction(nodefunction2)
+          
+    cop = COP_Instance(nodeVariables, nodeFunctions, agents)    
+    
+    return cop  
+
 
 def create_DCop():
     
@@ -87,11 +163,11 @@ def create_DCop():
     return cop  
 
 if __name__ == "__main__":
-    cop = create_DCop()
+    cop = create_DCop2()
     ms = MaxSum(cop, "max")
     ms.setUpdateOnlyAtEnd(False) 
-    ms.setIterationsNumber(2)
-    ms.solve_complete()
+    ms.setIterationsNumber(3)
+    ms.solve_complete(True)
 
     for agent in ms.cop.getAgents():
         for variable in agent.getVariables():

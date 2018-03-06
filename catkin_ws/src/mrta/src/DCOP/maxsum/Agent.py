@@ -242,12 +242,16 @@ class Agent:
             Compute the Z-messages and set the variables to the value of argmax.
         '''
         self.report = ""
+        zMessages = {}
         
         for nodeVariable in self.getVariables():
 
-            self.op.updateZ(nodeVariable, self.postservice)
-            
+            zMessage = self.op.updateZ(nodeVariable, self.postservice, test)
+            zMessages[nodeVariable.id_var] = zMessage.message
+
             self.report = self.report + str(datetime.datetime.now())[:23] + "\t\t" + self.op.getReport()
+        
+        return zMessages
        
         
     

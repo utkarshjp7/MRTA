@@ -111,7 +111,22 @@ class MSumOperator:
         if len(rmessages) == 0:
             return self.sum.nullMessage(x, None, x.size()).getMessage()
         else:
-            return self.sum.op(x, None, rmessages).getMessage()
+            z = self.sum.op(x, None, rmessages).getMessage()              
+            size = z.size()
+            if (size % 2) != 0:
+                print("Each variable has 2 possible values for each function, so number of total states has to be even.")
+                sys.exit(1)
+
+            neg_sum = 0
+            for i in range(size/2, size):
+                neg_sum += z.getValue(i)
+
+            for i in range(0, size/2):
+                cur_value = z.getValue(i)
+                value_to_add = neg_sum - z.getValue(i + size/2)
+                z.setValue(i, cur_value + value_to_add)
+
+            return z
         
         
     def updateQ(self, x, f, postservice):
@@ -243,12 +258,10 @@ class MSumOperator:
         '''      
         self.report = ""
         
-        ps.setZMessage(x, self.computeZ(
-                    x,
-                    ps.getMessageRToX(x)
-                ))
+        zMessage = self.computeZ(x,ps.getMessageRToX(x))
+        ps.setZMessage(x, zMessage)
         self.report = self.report + ps.getReport()
-        
+        return zMessage
         
     def argOfInterestOfZ(self, x, ps):
         '''
@@ -257,6 +270,6 @@ class MSumOperator:
             Implementation of arg-max/arg-min of Z
         '''    
         return self.type.argOfInterestOfZ(
-                ps.readZMessage(x)
-                )
+            ps.readZMessage(x)
+            )
             

@@ -66,7 +66,13 @@ class DcopAllocator:
                 dcop = self.create_dcop(cur_tasks, robots, is_hetero)                                 
                 self.logger.debug("Dcop created. Now solving dcop.")
                 self.logger.debug("Cost Table: {0}".format(str(self._cost_table)))
-                ms = self.solve_dcop(dcop)
+                
+                if dcop is None:
+                    cur_tasks.clear()
+                    print("Tasks cannot be allocated.")
+                    break    
+                
+                ms = self.solve_dcop(dcop, test)
                 results = ms.get_results()
                 self.logger.debug("Dcop solved.")
 
@@ -83,7 +89,7 @@ class DcopAllocator:
                     sys.exit(0)
 
                 for task_id in task_ids:
-                    if task_id != 0: 
+                    if task_id > 0: 
                         robot_ids = [r for r,t in results.iteritems() if t == task_id]
                         if not self._collab:
                             robot_ids = [robot_ids[-1]]
@@ -125,19 +131,16 @@ class DcopAllocator:
         return schedules           
 
     def solve_dcop(self, dcop):
-        ms = MaxSum(dcop, "min")
+        ms = MaxSum(dcop, "max")
         ms.setUpdateOnlyAtEnd(False) 
         ms.setIterationsNumber(3)
         ms.solve_complete()
         return ms
 
     def create_dcop(self, tasks, robots, is_hetero):
-        variables = set()
-        dummy_func = NodeFunction(0)
-        dummy_func.setFunction(TabularFunction())
-        functions = { 0: dummy_func }
-        agents = [Agent(robot.id) for robot in robots]
-        random.choice(agents).addNodeFunction(dummy_func)
+        variables = set()        
+        functions = { }
+        agents = [Agent(robot.id) for robot in robots]        
 
         for task in tasks:
             function = NodeFunction(task.id)
@@ -147,7 +150,7 @@ class DcopAllocator:
 
         for robot in robots:        
             variable = NodeVariable(robot.id)            
-            domain = [dummy_func.function_id]
+            domain = []
 
             for task in tasks:
                 if is_hetero and not robot.is_capable(task):
@@ -155,56 +158,55 @@ class DcopAllocator:
 
                 min_cost, min_pos = robot.find_min_cost(task, self._tasks_preconditions)
                 if task.id in self._cost_table:
-                    self._cost_table[task.id][robot.id] = (min_cost, min_pos)
+                    self._cost_table[task.id][robot.id] = (1/min_cost, min_pos)
                 else:
-                    self._cost_table[task.id] = {robot.id: (min_cost, min_pos)}
+                    self._cost_table[task.id] = {robot.id: (1/min_cost, min_pos)}
 
                 #if robot can fit this task in its schedule
                 if min_cost < float("inf"):
                     function = functions[task.id]
-                    domain.append(function.function_id)
+                    domain.append(function.function_id)                    
                     variable.addNeighbour(function)
                     function.addNeighbour(variable)
 
             #if robot can do atleast one task
-            if len(domain) > 1:
-                variable.addDomain(domain)                                 
-                variable.addNeighbour(dummy_func)
-                dummy_func.addNeighbour(variable)
+            if len(domain) > 0:                
+                domain = domain + [-func_id for func_id in domain]                                
+                variable.addDomain(domain)
                 variables.add(variable)
                 agent = [agent for agent in agents if agent.agent_id == robot.id][0]
-                agent.addNodeVariable(variable)       
+                agent.addNodeVariable(variable)    
 
-        for _, function in functions.iteritems():                        
-            if len(function.params) > 0:
-                param_values = []
-                for param in function.params:
-                    param_values.append([v.value for v in param.values])
-
-                all_values = list(product(*param_values))            
+        for _, function in functions.iteritems():
+            size = len(function.params)                        
+            if size > 0:
+                func_id = function.function_id                                  
+                all_values = list(product(*[(func_id, -func_id)] * size))          
+                
                 for values in all_values:
-                    arguments = [NodeArgument(v) for v in values]
-                    utility = 10000000
-                    if function.function_id != dummy_func.function_id:                                                
-                        utility = self._calc_function_utility(function, arguments)
-                    function.getFunction().addParametersCost(arguments, utility)
+                    func_args = [NodeArgument(v) for v in values]                                                                                        
+                    utility = self._calc_function_utility(function, func_args)
+                    function.getFunction().addParametersCost(func_args, utility)
+                    
+        if len(variables) == 0:            
+            return None
 
         dcop = COP_Instance(variables, list(functions.values()), agents)
         return dcop
 
-    def _calc_function_utility(self, function, arguments):
+    def _calc_function_utility(self, function, func_args):
         robot_cost_arr = []
         i = 0
 
-        while i < len(arguments):            
-            assigned_function_id = arguments[i].value
-            if assigned_function_id == function.function_id:
+        func_id = function.function_id
+        while i < len(func_args):             
+            if func_args[i].value == func_id:
                 robot_variable = function.params[i]
-                robot_cost = self._cost_table[assigned_function_id][robot_variable.id_var][0]
+                robot_cost = self._cost_table[func_id][robot_variable.id_var][0]
                 robot_cost_arr.append(robot_cost)
             i += 1
 
-        function_utility = 10000000
+        function_utility = -10000000
 
         num_of_robots = len(robot_cost_arr)
         if self._collab:
@@ -213,7 +215,7 @@ class DcopAllocator:
                 function_utility = math.log(total_cost)
         elif num_of_robots == 1:
                 total_cost = self._calc_combined_cost(robot_cost_arr)
-                function_utility = math.log(total_cost)
+                function_utility = total_cost
 
         return function_utility
 
