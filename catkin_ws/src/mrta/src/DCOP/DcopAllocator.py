@@ -72,7 +72,7 @@ class DcopAllocator:
                     print("Tasks cannot be allocated.")
                     break    
                 
-                ms = self.solve_dcop(dcop, test)
+                ms = self.solve_dcop(dcop)
                 results = ms.get_results()
                 self.logger.debug("Dcop solved.")
 
