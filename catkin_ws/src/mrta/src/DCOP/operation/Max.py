@@ -10,6 +10,7 @@ of MaxSum
 '''
 
 import sys, os
+import operator
 
 sys.path.append(os.path.abspath('../messages/'))
 sys.path.append(os.path.abspath('../function/'))
@@ -37,7 +38,7 @@ class Max:
             Computes the r message from a function f to a variable x
         '''
         # calculates maxValue of RMessage based on QMessages received
-        maxCost = fe.maximizeWRT(x, modifierTable)
+        maxCost = fe.maximizeWRT(x, modifierTable, sender)
     
         return self.factory.getMessageR(sender, x, maxCost)
         
@@ -92,13 +93,9 @@ class Max:
             Given Z, it gives back the argmax (index of max)
         '''
         argmax = 0
-        maxvalue = z.getValue(0)
-                    
-        for index in range(0, z.size() - 1):
-      
-            if (maxvalue < z.getValue(index + 1)):
-                argmax = index + 1
-                maxvalue = z.getValue(index + 1) 
+
+        if len(z) > 0:
+            argmax = max(z.iteritems(), key=operator.itemgetter(1))[0]
                                 
         return argmax
         

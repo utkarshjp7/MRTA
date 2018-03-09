@@ -152,8 +152,8 @@ class Agent:
         '''
             x: NodeVariable
             Set the NodeVariable x value as the argMax of Z-message
-        '''
-        x.setStateIndex(self.op.argOfInterestOfZ(x, self.postservice))
+        '''       
+        x.setStateIndex(x.getIndexOfValue(self.op.argOfInterestOfZ(x, self.postservice)))
         
     def updateVariableValue(self):
         '''
@@ -241,17 +241,13 @@ class Agent:
         '''
             Compute the Z-messages and set the variables to the value of argmax.
         '''
-        self.report = ""
-        zMessages = {}
+        self.report = ""        
         
         for nodeVariable in self.getVariables():
 
-            zMessage = self.op.updateZ(nodeVariable, self.postservice)
-            zMessages[nodeVariable.id_var] = zMessage.message
+            self.op.updateZ(nodeVariable, self.postservice)            
 
             self.report = self.report + str(datetime.datetime.now())[:23] + "\t\t" + self.op.getReport()
-        
-        return zMessages
        
         
     

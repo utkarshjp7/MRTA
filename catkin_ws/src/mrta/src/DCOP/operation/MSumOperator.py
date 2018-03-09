@@ -12,10 +12,13 @@ It manages the calculating of rmessages/qmessages
 
 import sys, os
 import datetime
+import operator
 
 sys.path.append(os.path.abspath('../system/'))
 sys.path.append(os.path.abspath('../operation/'))
+sys.path.append(os.path.abspath('../message/'))
 
+from MessageQ import MessageQ
 
 class MSumOperator:
     
@@ -61,7 +64,7 @@ class MSumOperator:
         return self.report    
         
     
-    def computeQ(self, sender, receiver, alpha, rmessages):
+    def computeQ(self, sender, receiver, rmessages):
         '''
             sender: NodeVariable
             receiver: NodeFunction
@@ -70,17 +73,33 @@ class MSumOperator:
             of r-messages
         '''
         if len(rmessages) == 0:
-            return None
+            return None                        
         
-        qmessage = self.sum.op(sender, receiver, rmessages)
+        content = [0, 0]
+
+        zValues = self.computeZ(sender, rmessages)
         
+        zArgMax = max(zValues.iteritems(), key=operator.itemgetter(1))[0]
+        content[1] = zValues[zArgMax]                
+
+        for rmessage in rmessages:
+            j = receiver.function_id
+            if rmessage.getSender().function_id != j:
+                content[0] += rmessage.getValue(1)
+                if rmessage.getSender().function_id != zArgMax:
+                    content[1] += rmessage.getValue(1)
+
+        qmessage = MessageQ(sender, receiver, content)
+
+        alpha = self.computeAlpha(qmessage)             
+
         for i in range(0, qmessage.size()):
             qmessage.setValue(i, qmessage.getValue(i) + alpha)
             
         return qmessage  
         
         
-    def computeAlpha(self, sender, receiver, rmessages):
+    def computeAlpha(self, qmessage):
         '''
             sender: NodeVariable
             receiver: NodeFunction
@@ -88,10 +107,6 @@ class MSumOperator:
             Computes the alpha, the normalization factor (sum of each rmessage divide the 
             domain's variable)  
         '''
-        if (rmessages == None) | (len(rmessages) == 0):
-            return 0
-        
-        qmessage = self.sum.op(sender, receiver, rmessages)
         
         alpha = qmessage.getValue(0)
         for i in range(1, qmessage.size()):
@@ -108,26 +123,22 @@ class MSumOperator:
             rmessages: list of r-messages to be added
             Summarize the r-messages
         '''
-        if len(rmessages) == 0:
-            return self.sum.nullMessage(x, None, x.size()).getMessage()
-        else:
-            z = self.sum.op(x, None, rmessages).getMessage()              
-            size = z.size()
-            if (size % 2) != 0:
-                print("Each variable has 2 possible values for each function, so number of total states has to be even.")
-                sys.exit(1)
+        values = x.getValues()[0 : len(x.getValues())/2]
+        zValue = {v.value:0 for v in values}
 
-            neg_sum = 0
-            for i in range(size/2, size):
-                neg_sum += z.getValue(i)
-
-            for i in range(0, size/2):
-                cur_value = z.getValue(i)
-                value_to_add = neg_sum - z.getValue(i + size/2)
-                z.setValue(i, cur_value + value_to_add)
-
-            return z
+        size = len(rmessages)
         
+        if size != 0:                                                    
+            for i in range(size):
+                func_id = rmessages[i].getSender().function_id
+                zValue[func_id] = rmessages[i].getValue(0)
+                for j in range(size):
+                    if func_id != rmessages[j].getSender().function_id:                                        
+                        zValue[func_id] += rmessages[j].getValue(1)
+
+
+
+        return zValue
         
     def updateQ(self, x, f, postservice):
         '''
@@ -168,21 +179,20 @@ class MSumOperator:
                     rmessages.append(value)                    
 
         
-        self.report = self.report + "\n"
-            
+        self.report = self.report + "\n"        
+
         
         for val in rmessages:
             self.report = self.report + " values:" + str(val.getMessage().toString()) + "\n"
             
-        messageq = self.computeQ(x, f, self.computeAlpha(x, f, rmessages), rmessages)
-                
-        
+        messageq = self.computeQ(x, f, rmessages)
+                        
         if (messageq == None):
-            messageq = self.sum.nullMessage(x, function, x.size())
+            messageq = self.sum.nullMessage(x, function, 2)            
             
         self.report = self.report + "\n\t\t\t\t\t\t\tQMessage: "
-        for i in range(x.size()):
-            self.report = self.report + str(messageq.getMessage().getValue(i)) + ","
+        #for i in range(x.size()):
+        #    self.report = self.report + str(messageq.getMessage().getValue(i)) + ","
             
         self.report = self.report + "\n"     
     
@@ -228,19 +238,19 @@ class MSumOperator:
     
                     self.report = self.report + " QMessage: "
                     
-                    for i in range(variable.size()):
-                        self.report = self.report = self.report + str(value.getMessage().getValue(i)) + ","
+                    #for i in range(variable.size()):
+                    #    self.report = self.report = self.report + str(value.getMessage().getValue(i)) + ","
                         
                 self.report = self.report + "\n\n"
            
         messager = self.type.Op(f, x, f.getFunction(), qmessages)
-
+        
         self.report = self.report + f.getFunction().getReport()
         
         
         self.report = self.report + "\t\t\t\t\t\t\tRMessage: "
-        for i in range(x.size()):
-            self.report = self.report + str(messager.getMessage().getValue(i)) + ","
+        #for i in range(x.size()):
+        #    self.report = self.report + str(messager.getMessage().getValue(i)) + ","
 
         self.report = self.report + "\n"
         
@@ -258,10 +268,9 @@ class MSumOperator:
         '''      
         self.report = ""
         
-        zMessage = self.computeZ(x,ps.getMessageRToX(x))
-        ps.setZMessage(x, zMessage)
+        zValue = self.computeZ(x,ps.getMessageRToX(x))
+        ps.setZMessage(x, zValue)
         self.report = self.report + ps.getReport()
-        return zMessage
         
     def argOfInterestOfZ(self, x, ps):
         '''

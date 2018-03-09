@@ -349,11 +349,32 @@ class MaxSum:
         '''
         #self.stringToFile(self.report, self.reportpath)  
 
-    def get_results(self):
+    def get_results(self, collab=False):
         result = {} # { variable_id : function_id }
         for agent in self.cop.getAgents():
             for variable in agent.getVariables():
-                result[variable.id_var] = variable.getStateArgument().value
+                result[variable] = variable.getStateArgument().value
         
+        if not collab:
+            for function_id in set(result.values()):
+                variables = [v for v in result if result[v] == function_id]
+                if len(variables) > 1:
+                    maxZValue = float("-inf")
+                    maxVariable = None
+                    for variable in variables:
+                        zValues = self.ps.readZMessage(variable)                    
+                        if result[variable] in zValues:
+                            zValue = zValues[result[variable]]
+                            if maxZValue < zValue:
+                                maxZValue = zValue
+                                maxVariable = variable
+                    if maxVariable is not None:
+                        for variable in variables:
+                            if variable.id_var != maxVariable.id_var:
+                                result[variable] = -result[variable]
+         
+        result = {k.id_var:v for k,v in result.iteritems()}
+
         return result
+
     

@@ -8,6 +8,8 @@ sys.path.append(os.path.abspath(cur_dir + '/../system'))
 sys.path.append(os.path.abspath(cur_dir + '/../graph'))
 sys.path.append(os.path.abspath(cur_dir + '/../misc'))
 sys.path.append(os.path.abspath(cur_dir + '/../function'))
+sys.path.append(os.path.abspath(cur_dir + '/../operation'))
+sys.path.append(os.path.abspath(cur_dir + '/../messages'))
 
 from Agent import Agent
 from NodeVariable import NodeVariable
@@ -16,6 +18,67 @@ from TabularFunction import TabularFunction
 from NodeArgument import NodeArgument
 from COP_Instance import COP_Instance
 from MaxSum import MaxSum
+from Max import Max
+from MessageFactory import MessageFactory
+
+def test():
+
+    nodeVariable1 = NodeVariable(1)
+    nodeVariable2 = NodeVariable(2)
+    nodeVariable3 = NodeVariable(3)
+
+    nodeVariable1.addDomain([1, -1])
+    nodeVariable2.addDomain([1, -1]) 
+    nodeVariable3.addDomain([1, 2, 3, 4, 5, -1, -2, -3, -4, -5])
+
+    nodefunction1 = NodeFunction(1)
+    nodefunction2 = NodeFunction(2)
+    nodefunction3 = NodeFunction(3)
+    nodefunction4 = NodeFunction(4)
+    nodefunction5 = NodeFunction(5)
+
+    nodefunction1.setFunction(TabularFunction())
+    nodefunction2.setFunction(TabularFunction())
+    nodefunction3.setFunction(TabularFunction())
+    nodefunction4.setFunction(TabularFunction())
+    nodefunction5.setFunction(TabularFunction())
+
+    nodeVariable1.addNeighbour(nodefunction1)
+    nodeVariable2.addNeighbour(nodefunction1)
+    nodeVariable3.addNeighbour(nodefunction1)
+    nodeVariable3.addNeighbour(nodefunction2)   
+    nodeVariable3.addNeighbour(nodefunction3)
+    nodeVariable3.addNeighbour(nodefunction4) 
+    nodeVariable3.addNeighbour(nodefunction5)
+     
+    nodefunction1.addNeighbour(nodeVariable1)
+    nodefunction1.addNeighbour(nodeVariable2)
+    nodefunction1.addNeighbour(nodeVariable3)
+
+    nodefunction2.addNeighbour(nodeVariable3)
+    nodefunction3.addNeighbour(nodeVariable3)
+    nodefunction4.addNeighbour(nodeVariable3)                                                
+    nodefunction5.addNeighbour(nodeVariable3)
+
+
+    nodefunction1.getFunction().addParametersCost([NodeArgument(1), NodeArgument(1), NodeArgument(1)], 7)
+    nodefunction1.getFunction().addParametersCost([NodeArgument(-1), NodeArgument(1), NodeArgument(1)], 8)
+    nodefunction1.getFunction().addParametersCost([NodeArgument(1), NodeArgument(-1), NodeArgument(1)], 5)
+    nodefunction1.getFunction().addParametersCost([NodeArgument(1), NodeArgument(1), NodeArgument(-1)], 10)
+    nodefunction1.getFunction().addParametersCost([NodeArgument(-1), NodeArgument(-1), NodeArgument(1)], 4)
+    nodefunction1.getFunction().addParametersCost([NodeArgument(-1), NodeArgument(1), NodeArgument(-1)], 6)
+    nodefunction1.getFunction().addParametersCost([NodeArgument(1), NodeArgument(-1), NodeArgument(-1)], 4)
+    nodefunction1.getFunction().addParametersCost([NodeArgument(-1), NodeArgument(-1), NodeArgument(-1)], 0)    
+     
+    mfactory = MessageFactory()    
+    #sum = Sum(mfactory) 
+    op = Max(mfactory)
+
+    rmessege = op.Op(nodefunction1, nodeVariable3, nodefunction1.getFunction(), [])
+
+    print [rmessege.getValue(i) for i in range(rmessege.size())]
+
+    return rmessege  
 
 def create_DCop2():
     
@@ -163,15 +226,19 @@ def create_DCop():
     return cop  
 
 if __name__ == "__main__":
+    
     cop = create_DCop2()
     ms = MaxSum(cop, "max")
     ms.setUpdateOnlyAtEnd(False) 
     ms.setIterationsNumber(3)
-    ms.solve_complete(True)
+    ms.solve_complete()
 
-    for agent in ms.cop.getAgents():
-        for variable in agent.getVariables():
-            print str(variable.toString()) + ": " + str(variable.getStateArgument())
+    result = ms.get_results2()
+
+    for variable in result:        
+        print str(variable) + ": " + str(result[variable])
 
     #report = ms.getReport()
     #print report
+    
+    

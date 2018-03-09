@@ -17,7 +17,7 @@ sys.path.append(os.path.abspath('../misc/'))
 
 from FunctionEvaluator import FunctionEvaluator
 from NodeArgumentArray import NodeArgumentArray
-
+from itertools import product 
 
 class TabularFunction(FunctionEvaluator):
     '''
@@ -159,20 +159,22 @@ class TabularFunction(FunctionEvaluator):
                     
         for nodeVariable in modifierTable:
             
-            indexOfModifier = nodeVariable.numberOfArgument(params[self.getParameterPosition(nodeVariable)])
-            
+            indexOfModifier = 0
+            if params[self.getParameterPosition(nodeVariable)] < 0:
+                indexOfModifier = 1
+                        
             cost = cost + modifierTable[nodeVariable].getValue(indexOfModifier)
 
         return cost
     
     
-    def maximizeWRT(self, x, modifierTable):
+    def maximizeWRT(self, x, modifierTable, sender):
         '''
             x: variable respect to maximize
             modifierTable: cost function
             calls the maximization function
         '''
-        return self.maxminWRT("max", x, modifierTable)
+        return self.maxminWRT("max", x, modifierTable, sender)
 
 
     def minimizeWRT(self, x, modifierTable):
@@ -184,7 +186,7 @@ class TabularFunction(FunctionEvaluator):
         return self.maxminWRT("min", x, modifierTable)
     
     
-    def maxmin(self, op, maxes, functionArgument, x, xIndex, modifierTable):   
+    def maxmin(self, op, maxes, functionArgument, x, xIndex, modifierTable, sender):   
         '''
             op: max/min
             maxes: actual maxes about variable
@@ -198,11 +200,13 @@ class TabularFunction(FunctionEvaluator):
             cost = float("-Infinity")
         elif(op == "min"):
             cost = float("+Infinity")
-            
-        for xParamIndex in range(x.size()):
-            
+                     
+        indexes = [x.getIndexOfValue(sender.function_id), x.getIndexOfValue(sender.function_id) + x.size()/2]
+
+        for i, xParamIndex in enumerate(indexes):
+
             functionArgument[xIndex] = xParamIndex
-            
+          
             '''            
                NOW it's pretty ready
                this is the part where it is maximized
@@ -213,16 +217,16 @@ class TabularFunction(FunctionEvaluator):
                 cost = (self.evaluateMod(self.functionArgument(functionArgument), modifierTable))
     
             if(op == "max"):
-                if (maxes[xParamIndex] < cost):
-                    maxes[xParamIndex] = (cost)
+                if (maxes[i] < cost):
+                    maxes[i] = (cost)
             elif(op == "min"):
-                if (maxes[xParamIndex] > cost):
-                    maxes[xParamIndex] = (cost)
+                if (maxes[i] > cost):
+                    maxes[i] = (cost)
 
         return maxes
 
     
-    def maxminWRT(self, op, x, modifierTable):
+    def maxminWRT(self, op, x, modifierTable, sender):
         '''
             op: max/min
             x: variable respect to maximize
@@ -241,8 +245,8 @@ class TabularFunction(FunctionEvaluator):
         fzParametersNumber = self.parametersNumber()
         
         '''
-            at the i-th position there is the number of possible values of 
-            the i-th argument of f at the position of x, there will be 
+            The i-th position of list will be the number of possible values of 
+            the i-th argument of f. At the position of x, there will be 
             only one value available
         '''
         numberOfValues = list()
@@ -256,14 +260,19 @@ class TabularFunction(FunctionEvaluator):
             set to zero functionArgument
         '''
         for i in range(fzParametersNumber):
-            functionArgument.append(0)
+            if i != xIndex:
+                pos_index = self.getParameter(i).getIndexOfValue(sender.function_id)
+                neg_index = self.getParameter(i).getIndexOfValue(-sender.function_id)        
+                functionArgument.append([pos_index, neg_index])
+        
+        functionArguments = product(*functionArgument)
             
         '''
             maximization array, wrt x possible values
         '''
         maxes = list()
         
-        for index in range(x.size()):
+        for index in range(2):
             if(op == "max"):
                 maxes.append(float("-Infinity"))
             elif(op == "min"):
@@ -271,37 +280,23 @@ class TabularFunction(FunctionEvaluator):
                        
                          
         for i in range(fzParametersNumber):
-            numberOfValues.append(self.getParameter(i).size())
+            numberOfValues.append(2)
             
         numberOfValues[xIndex] = 1
         
         imax = len(numberOfValues) - 1  
         
         i = imax  
-                
-        while (i >= 0):
-            while(functionArgument[i] < (numberOfValues[i] - 1)):                    
-                '''
-                    calculate the maxes with functionArgument parameters
-                '''
-                maxes = self.maxmin(op, maxes, functionArgument, x, xIndex, modifierTable)
 
-                functionArgument[i] = functionArgument[i] + 1                
-                
-                j = i + 1
-                while j <= imax:
-                    functionArgument[j] = 0
-                    j = j + 1
-                
-                i = imax
-                
-            i = i - 1
+        for argument in functionArguments:
+            argument = list(argument)
+            argument.insert(xIndex, 0)
+            maxes = self.maxmin(op, maxes, argument, x, xIndex, modifierTable, sender)
 
-        '''       
-            here an array ready for being evaluated 
-            final max value of this cost function
-        '''
-        maxes = self.maxmin(op, maxes, functionArgument, x, xIndex, modifierTable)
+
+
+
+
         
         return maxes 
     

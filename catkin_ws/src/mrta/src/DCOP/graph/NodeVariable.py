@@ -63,7 +63,7 @@ class NodeVariable:
             color taken by variable
         '''
         self.color = -1
-        
+
     def setColor(self, color):
         '''
             set NodeVariable's color with color
@@ -127,14 +127,6 @@ class NodeVariable:
         '''
         return len(self.values)
 
-
-    def numberOfArgument(self, node):  
-        '''
-            node: NodeArgument to find
-            it gives the position of the argument over the possible values
-        '''
-        return self.values.index(node)
-
     def getArgument(self, index):  
         '''
             index: NodeArgument's index to find
@@ -172,7 +164,7 @@ class NodeVariable:
             n: actual nodeArgument of the variable
             Set the actual NodeArgument
         '''
-        self.index_actual_argument = self.numberOfArgument(n)
+        self.index_actual_argument = self.getIndexOfValue(n.value)
 
 
     def getStateIndex(self):
@@ -211,7 +203,16 @@ class NodeVariable:
             returns each value of domain's variable
         '''
         return self.values
-    
+
+    def getIndexOfValue(self, value):
+        '''
+            value: Value to find
+            it gives the position of the argument over the possible values
+        '''
+        index = [i for i in range(self.size()) if self.values[i].value == value]
+        if len(index) > 0:
+            return index[0]
+
     def stringOfNeighbour(self):
         neighbours = ""
         for nodefunction in self.neighbours:

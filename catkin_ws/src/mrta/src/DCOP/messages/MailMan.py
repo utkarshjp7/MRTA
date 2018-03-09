@@ -225,7 +225,10 @@ class MailMan:
             x: NodeVariable respect to read the value
             Reads the value of x in Z-Function and returns it 
         '''    
-        return self.zmessages[x]
+        if x in self.zmessages:
+            return self.zmessages[x]
+        
+        return {}
     
     def setZMessage(self, x, mc):
         '''
@@ -237,7 +240,7 @@ class MailMan:
         
         self.zmessages[x] = mc
         
-        self.report = self.report + "ZFunction of " + str(x.toString()) + self.zmessages[x].toString() + "\n"
+        #self.report = self.report + "ZFunction of " + str(x.toString()) + self.zmessages[x].toString() + "\n"
           
     
     def getMessageRToX(self, x):
