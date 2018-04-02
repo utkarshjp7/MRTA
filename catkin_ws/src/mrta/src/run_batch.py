@@ -57,21 +57,32 @@ def print_schedules(all_schedules1, all_schedules2):
 def calculate_stats(all_schedules):
     avg_makespan = 0
     avg_time_travelled = 0
+    avg_idle_time = 0
     total_travel_time = 0
     total_make_span = 0
+    total_idle_time = 0
+    num_of_robots = len(all_schedules[0])
 
     total_tasks_scheduled = 0
 
+    #for each pgraph in all pgraphs
     for schedules in all_schedules:
         all_tasks = set()
         makespan = float('-inf')        
+        #for each robot schedule in pgraph
         for stn in schedules:
             ms = stn.get_makespan()
             tt = stn.total_travel_time
+            total_task_duration = 0
+            tasks = stn.get_all_tasks()
+            for task in tasks:
+                total_task_duration += task.duration
+            idle_time = ms - total_task_duration - tt
             if ms > makespan:
                 makespan = ms
             total_travel_time += tt
-            all_tasks = all_tasks.union(stn.get_all_tasks())
+            total_idle_time += idle_time
+            all_tasks = all_tasks.union(tasks)
 
         total_tasks_scheduled += len(all_tasks)
         total_make_span += makespan
@@ -79,12 +90,13 @@ def calculate_stats(all_schedules):
     if len(all_schedules) != 0:
         avg_makespan = total_make_span / float(len(all_schedules))
         avg_time_travelled = total_travel_time / float(len(all_schedules))
-        
+        avg_idle_time = total_idle_time / (num_of_robots * float(len(all_schedules)))        
+
         if avg_makespan == float("inf"):
             print("ERROR: Makespan can not be infinity.")
             sys.exit(0)
 
-    return avg_makespan, avg_time_travelled, total_tasks_scheduled
+    return avg_makespan, avg_time_travelled, total_tasks_scheduled, avg_idle_time
 
 def verify_no_collaboration(all_schedules):
     for schedules in all_schedules:  
@@ -101,12 +113,15 @@ def verify_no_collaboration(all_schedules):
             sys.exit(0)    
 
 def log_results(all_schedules1, all_schedules2, beta, alpha, task_count, robot_count, num_of_pgraphs, comment):
-    ms1, tt1, st1 = calculate_stats(all_schedules1)
-    ms2, tt2, st2 = calculate_stats(all_schedules2)
+    ms1, tt1, st1, it1 = calculate_stats(all_schedules1)
+    ms2, tt2, st2, it2 = -1, -1, -1, -1
+    if len(all_schedules2) > 0:
+        ms2, tt2, st2, it2 = calculate_stats(all_schedules2)
     
     print("Number of tasks scheduled: {0} and {1}".format(st1, st2))
     print("Average makespan: {0} and {1}".format(ms1, ms2))
-    print("Average time travelled: {0} and {1}".format(tt1, tt2))             
+    print("Average time travelled: {0} and {1}".format(tt1, tt2))              
+    print("Average idle time: {0} and {1}".format(it1, it2))              
 
     connect_str = "dbname='mrta' user='#' password='#' host='localhost'"
     conn = psycopg2.connect(connect_str)
@@ -114,13 +129,13 @@ def log_results(all_schedules1, all_schedules2, beta, alpha, task_count, robot_c
     insert_record = """
                         INSERT INTO 
                             results(robots, tasks, pgraphs, alpha, beta, 
-                                 ms1, tt1, scheduled_tasks1,
-                                 ms2, tt2, scheduled_tasks2, last_updated, comment)
+                                 ms1, tt1, it1, scheduled_tasks1,
+                                 ms2, tt2, it2, scheduled_tasks2, last_updated, comment)
                         
-                        VALUES('{0}', '{1}', '{2}', '{3}', '{4}', '{5}', '{6}', '{7}', '{8}', '{9}', '{10}', '{11}', '{12}')
-                    """.format(robot_count, task_count, num_of_pgraphs, alpha, beta, ms1, tt1, st1, ms2, tt2, st2, datetime.now(), comment)
+                        VALUES('{0}', '{1}', '{2}', '{3}', '{4}', '{5}', '{6}', '{7}', '{8}', '{9}', '{10}', '{11}', '{12}', '{13}', '{14}')
+                    """.format(robot_count, task_count, num_of_pgraphs, alpha, beta, ms1, tt1, it1, st1, ms2, tt2, it2, st2, datetime.now(), comment)
 
-    execute_sql(conn, insert_record)
+    #execute_sql(conn, insert_record)
 
 if __name__ == "__main__":    
     parser = argparse.ArgumentParser(description="MRTA Algorithms")
@@ -150,6 +165,8 @@ if __name__ == "__main__":
         for task_count in task_count_arr:
             max_possible_edges = (task_count * (task_count - 1))/2
             max_num_of_edges = min(3 * task_count, max_possible_edges)            
+            tasks = dg.generate_tasks(task_count)
+            
             for alpha in alpha_arr:
                 for beta in beta_arr:
                     all_schedules1 = []
@@ -162,18 +179,18 @@ if __name__ == "__main__":
                     print("Total Tasks: {0}".format(num_of_pgraphs * task_count))
                     print("Alpha: {0}".format(alpha))
                     print("Beta: {0}".format(beta))
+                    p_graphs = dg.generate_pgraphs(deepcopy(tasks), num_of_pgraphs, max_num_of_edges, beta)
                     
-                    p_graphs = dg.generate_dataset(task_count, num_of_pgraphs, max_num_of_edges, beta)                                       
                     for p_graph in p_graphs:
-                                                                       
+			
                         dcop_robots = deepcopy(ori_robots)
                         for robot in dcop_robots:
-                            robot.set_alpha(alpha)                                                                     
+                            robot.set_alpha(alpha)     
                         dcop = DcopAllocator(deepcopy(p_graph), logger, collab=False)                    
                         dcop_schedules = dcop.allocate(dcop_robots)
                         all_schedules1.append(dcop_schedules)     
-                         
-                        pia_robots = deepcopy(ori_robots)
+
+			pia_robots = deepcopy(ori_robots)
                         for robot in pia_robots:
                             robot.set_alpha(alpha)   
                         pia = PIA(deepcopy(p_graph), pia_robots, logger)

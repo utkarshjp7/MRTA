@@ -54,7 +54,7 @@ class DataGenerator:
             locations.append((pos_x, pos_y))
         return locations
 
-    def generate_precedence_graph(self, tasks, max_num_of_edges, beta):
+    def generate_pgraph(self, tasks, max_num_of_edges, beta):
         p_graph = PrecedenceGraph(tasks, beta)
         min_num_of_edges = len(tasks) / 2
         num_of_edges = min_num_of_edges
@@ -79,6 +79,15 @@ class DataGenerator:
         p_graph.calc_all_priorities()
         return p_graph
 
+    def generate_pgraphs(self, tasks, num_of_pgraphs, max_num_of_edges, beta):
+        p_graphs = []    
+
+        for i in range(num_of_pgraphs):
+            p_graph = self.generate_pgraph(tasks, max_num_of_edges, beta)
+            p_graphs.append(p_graph)
+
+        return p_graphs  
+
     def generate_robots(self, num_of_robots, robot_speed):
         locations = self.generate_locations(num_of_robots)          
         robots = []
@@ -101,17 +110,6 @@ class DataGenerator:
             robots.append(robot)
 
         return robots
-
-    def generate_dataset(self, num_of_tasks, num_of_precedence_graphs, max_num_of_edges, beta):
-        p_graphs = []    
-        locations = self.generate_locations(num_of_tasks)      
-
-        for i in range(num_of_precedence_graphs):
-            tasks = self.generate_tasks(num_of_tasks, locations)
-            p_graph = self.generate_precedence_graph(tasks, max_num_of_edges, beta)
-            p_graphs.append(p_graph)
-
-        return p_graphs  
 
 if __name__ == "__main__":
 
