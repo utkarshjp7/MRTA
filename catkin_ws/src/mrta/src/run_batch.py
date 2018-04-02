@@ -117,7 +117,7 @@ def log_results(all_schedules1, all_schedules2, beta, alpha, task_count, robot_c
     ms2, tt2, st2, it2 = -1, -1, -1, -1
     if len(all_schedules2) > 0:
         ms2, tt2, st2, it2 = calculate_stats(all_schedules2)
-    
+
     print("Number of tasks scheduled: {0} and {1}".format(st1, st2))
     print("Average makespan: {0} and {1}".format(ms1, ms2))
     print("Average time travelled: {0} and {1}".format(tt1, tt2))              
@@ -156,12 +156,25 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     num_of_pgraphs = args.num_of_pgraphs
-
     logger = Logger(LogLevel.OFF[0])
-
     dg = DataGenerator(map_x, map_y, logger)
+
+    robots_data_file = './robots.pickle'
+    pgraph_data_file = './pgraphs.pickle'
+    robots_data = None
+    pgraph_data = None
+    
+    if os.path.isfile(robots_data_file):
+        robots_data = pickle.load(open(robots_data_file))
+    if os.path.isfile(pgraph_data_file):
+        pgraph_data = pickle.load(open(pgraph_data_file))
+
     for robot_count in robot_count_arr:
-        ori_robots =  dg.generate_robots(robot_count, 1)        
+        if robots_data is None:
+            ori_robots = dg.generate_robots(robot_count, 1)
+        else:
+            ori_robots = robots_data[robot_count]
+        
         for task_count in task_count_arr:
             max_possible_edges = (task_count * (task_count - 1))/2
             max_num_of_edges = min(3 * task_count, max_possible_edges)            
@@ -172,25 +185,29 @@ if __name__ == "__main__":
                     all_schedules1 = []
                     all_schedules2 = []
 
-                    print("\n-------------------------------------------------------------")
+                    print("\n-------------------------------------------------------------")                    
                     print("Robot count: {0}".format(robot_count))
                     print("Task count: {0}".format(task_count))  
                     print("Precedence graph count: {0}".format(num_of_pgraphs))                  
                     print("Total Tasks: {0}".format(num_of_pgraphs * task_count))
                     print("Alpha: {0}".format(alpha))
                     print("Beta: {0}".format(beta))
-                    p_graphs = dg.generate_pgraphs(deepcopy(tasks), num_of_pgraphs, max_num_of_edges, beta)
+                    
+                    if pgraph_data is None:
+                        p_graphs = dg.generate_pgraphs(deepcopy(tasks), num_of_pgraphs, max_num_of_edges, beta)
+                    else:
+                        p_graphs = pgraph_data[task_count][beta]
                     
                     for p_graph in p_graphs:
-			
+			                            
                         dcop_robots = deepcopy(ori_robots)
                         for robot in dcop_robots:
                             robot.set_alpha(alpha)     
                         dcop = DcopAllocator(deepcopy(p_graph), logger, collab=False)                    
                         dcop_schedules = dcop.allocate(dcop_robots)
                         all_schedules1.append(dcop_schedules)     
-
-			pia_robots = deepcopy(ori_robots)
+                                                
+			            pia_robots = deepcopy(ori_robots)
                         for robot in pia_robots:
                             robot.set_alpha(alpha)   
                         pia = PIA(deepcopy(p_graph), pia_robots, logger)
@@ -199,4 +216,4 @@ if __name__ == "__main__":
 
                     log_results(all_schedules1, all_schedules2, beta, alpha, task_count, robot_count, num_of_pgraphs, "040118")                                                  
                     print("-------------------------------------------------------------\n")
-                                   
+    

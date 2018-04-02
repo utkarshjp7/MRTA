@@ -75,7 +75,7 @@ class DcopAllocator:
                     break    
                 
                 ms = self.solve_dcop(dcop)
-                results = ms.get_results()
+                results = ms.get_results(collab= self._collab)
                 self.logger.debug("Dcop solved.")
 
                 if len(results) == 0:
@@ -96,14 +96,15 @@ class DcopAllocator:
                         if not self._collab:
                             robot_ids = [robot_ids[-1]]                    
                         
+                        scheduled_task = [task for task in cur_tasks if task.id == task_id][0]                            
+                        scheduled_task.change_duration(scheduled_task.duration / len(robot_ids))
+
                         for robot_id in robot_ids:
                             self.logger.debug("Task {0} has been assigned to robot {1}".format(task_id, robot_id))
                             robot = [robot for robot in robots if robot.id == robot_id][0]
-                            scheduled_task = [task for task in cur_tasks if task.id == task_id][0]                            
-                            scheduled_task.change_duration(scheduled_task.duration / len(robot_ids))
                             pos = self._cost_table[scheduled_task.id][robot.id][1]
                             self.logger.debug("Adding task {0} to robot {1}'s STN at position {2}".format(task_id, robot_id, pos))
-                            robot.add_task(scheduled_task, pos, self._tasks_preconditions)
+                            robot.add_task(deepcopy(scheduled_task), pos, self._tasks_preconditions)
                             self.logger.debug("Task has been added.")
                             scheduled_tasks.add(scheduled_task)
                 
@@ -190,7 +191,7 @@ class DcopAllocator:
                 task = [t for t in tasks if t.id == function.function_id][0]                 
                 for values in all_values:
                     func_args = [NodeArgument(v) for v in values]                                                                                                           
-                    utility = self._calc_function_utility(function, func_args, deepcopy(task), robots)
+                    utility = self._calc_function_utility(function, func_args, deepcopy(task), robots)                                        
                     function.getFunction().addParametersCost(func_args, utility)
                     
         if len(variables) == 0:            
@@ -234,7 +235,7 @@ class DcopAllocator:
         if task_copy in self._tasks_preconditions:
             l = max(l, self._tasks_preconditions[task_copy] - 1)            
         l = int(math.ceil(l))
-        r = int(math.ceil(task.lft)) 
+        r = int(math.ceil(task_copy.lft)) 
 
         for robot in robots:            
             arr = robot.get_bit_schedule(task_copy)
@@ -243,7 +244,8 @@ class DcopAllocator:
                 arr.extend(padding)
             bitarrays.append(arr[l:r])
 
-        combined_cost = utils.NEG_INF
+        coalition_cost = utils.NEG_INF
+        
         i = utils.find_common_gap_in_bit_schedules(bitarrays, task_copy.duration)
         if i != -1:
             start_time = l + i + 1        
@@ -253,8 +255,7 @@ class DcopAllocator:
             for robot in robots:
                 cost = robot.get_cost(task_copy, self._tasks_preconditions, start_time)  
                 cost_arr.append(cost)
-
-            combined_cost = sum(cost_arr)/float(len(cost_arr))
+            coalition_cost = sum(cost_arr)/float(len(cost_arr))
         
-        return combined_cost
+        return coalition_cost
         

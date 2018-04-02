@@ -5,6 +5,7 @@ from numpy import random
 from Task import Task
 from PrecedenceGraph import PrecedenceGraph, Node
 from Robot import Robot
+from Logger import Logger, LogLevel
 
 class DataSet:
 
@@ -115,13 +116,6 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="MRTA Data Generator")
 
-    parser.add_argument('--datasets',
-        help='Number of datasets to generate',
-        dest='num_of_datasets',
-        type=int,
-        default=1,
-        action='store')
-
     parser.add_argument('--x',
         help='X Dimention of Map',
         dest='map_x',
@@ -137,15 +131,32 @@ if __name__ == "__main__":
         action='store')
 
     args = parser.parse_args()
-    num_of_datasets = args.num_of_datasets
+
+    logger = Logger(LogLevel.OFF[0])
     map_x = args.map_x
     map_y = args.map_y
+    
+    num_of_pgraphs = 10
+    robot_count_arr = [2, 4, 8]
+    task_count_arr = [5, 10, 20, 30]     
+    beta_arr = [0.25, 0.5, 0.75]
 
-    num_of_robots = [ 2, 2, 2, 3, 3, 3, 4, 4, 4 ]
+    dg = DataGenerator(map_x, map_y, logger)
+    robots = { }
+    for robot_count in robot_count_arr:
+        robots[robot_count] = dg.generate_robots(robot_count, 1)
+    
+    p_graphs = { }
+    for task_count in task_count_arr:
+        p_graphs[task_count] = {}
+        tasks = dg.generate_tasks(task_count)
+        max_possible_edges = (task_count * (task_count - 1))/2
+        max_num_of_edges = min(3 * task_count, max_possible_edges)
+        for beta in beta_arr:
+            p_graphs[task_count][beta] = dg.generate_pgraphs(tasks, num_of_pgraphs, max_num_of_edges, beta)
 
-    for i in range(1, num_of_datasets+1):
-        dg = DataGenerator(map_x, map_y)
-        dg.generate_dataset(i, num_of_robots[i-1])
+    pickle.dump(robots, open('./robots.pickle', 'w'))
+    pickle.dump(p_graphs, open('./pgraphs.pickle', 'w'))
 
 
 
