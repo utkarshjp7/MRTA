@@ -140,7 +140,7 @@ class PrecedenceGraph:
                 self.second_layer.remove(c)
                 self.first_layer.add(c)
 
-                pc[c.task] = max([ p.task.finish_time for p in parents ])
+                pc[c.task] = max([ p.task.finish_time + 1 for p in parents ])
 
                 for h in self.hidden_layer.intersection(c.children):
                     parents = self._get_parents(h)

@@ -91,7 +91,7 @@ def verify_no_collaboration(all_schedules):
         total_task = 0
         all_tasks = set()
         for stn in schedules:            
-            tasks = stn.get_all_tasks()
+            tasks = set(stn.get_all_tasks())
             total_task += len(tasks)
             all_tasks = all_tasks.union(tasks)
         
@@ -106,7 +106,7 @@ def log_results(all_schedules1, all_schedules2, beta, alpha, task_count, robot_c
     
     print("Number of tasks scheduled: {0} and {1}".format(st1, st2))
     print("Average makespan: {0} and {1}".format(ms1, ms2))
-    print("Average time travelled: {0} and {1}".format(tt1, tt2))              
+    print("Average time travelled: {0} and {1}".format(tt1, tt2))             
 
     connect_str = "dbname='mrta' user='#' password='#' host='localhost'"
     conn = psycopg2.connect(connect_str)
@@ -122,7 +122,7 @@ def log_results(all_schedules1, all_schedules2, beta, alpha, task_count, robot_c
 
     execute_sql(conn, insert_record)
 
-if __name__ == "__main__":
+if __name__ == "__main__":    
     parser = argparse.ArgumentParser(description="MRTA Algorithms")
 
     parser.add_argument('-pgraphs',
@@ -132,22 +132,8 @@ if __name__ == "__main__":
         default=5,
         action='store')
 
-    parser.add_argument('--collab',
-        help='No collobaration between robots.',
-        dest='collab',
-        default=False,
-        action='store_true'
-	)
-
-    parser.add_argument('--hetero',
-        help='Run simulation with heterogeneous robots.',
-        dest='is_hetero',
-        default=False,
-        action='store_true'
-	)
-
-    robot_count_arr = [2, 4]
-    task_count_arr = [5, 10]
+    robot_count_arr = [2, 4, 8]
+    task_count_arr = [5, 10, 20, 30]
     alpha_arr = [0.25, 0.5, 0.75] 
     beta_arr = [0.25, 0.5, 0.75]
     map_x = 100
@@ -155,8 +141,6 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     num_of_pgraphs = args.num_of_pgraphs
-    collab = args.collab
-    is_hetero = args.is_hetero
 
     logger = Logger(LogLevel.OFF[0])
 
@@ -181,14 +165,14 @@ if __name__ == "__main__":
                     
                     p_graphs = dg.generate_dataset(task_count, num_of_pgraphs, max_num_of_edges, beta)                                       
                     for p_graph in p_graphs:
-                                                       
+                                                                       
                         dcop_robots = deepcopy(ori_robots)
                         for robot in dcop_robots:
                             robot.set_alpha(alpha)                                                                     
-                        dcop = DcopAllocator(deepcopy(p_graph), logger, collab=collab)                    
-                        dcop_schedules = dcop.allocate(dcop_robots, is_hetero=is_hetero)
+                        dcop = DcopAllocator(deepcopy(p_graph), logger, collab=False)                    
+                        dcop_schedules = dcop.allocate(dcop_robots)
                         all_schedules1.append(dcop_schedules)     
-                                                               
+                         
                         pia_robots = deepcopy(ori_robots)
                         for robot in pia_robots:
                             robot.set_alpha(alpha)   
@@ -196,6 +180,6 @@ if __name__ == "__main__":
                         pia_schedules = pia.allocate_tasks()
                         all_schedules2.append(pia_schedules)   
 
-                    log_results(all_schedules1, all_schedules2, beta, alpha, task_count, robot_count, num_of_pgraphs, "dcop")                                                  
+                    log_results(all_schedules1, all_schedules2, beta, alpha, task_count, robot_count, num_of_pgraphs, "040118")                                                  
                     print("-------------------------------------------------------------\n")
                                    

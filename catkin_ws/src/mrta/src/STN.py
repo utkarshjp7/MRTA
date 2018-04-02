@@ -5,6 +5,8 @@ import numpy as np
 import utils
 from Task import Task
 from copy import deepcopy
+import math
+from bitarray import bitarray
 
 class STN(object):
 
@@ -28,7 +30,15 @@ class STN(object):
             s += "\n"
         return s
 
-    def insert_task(self, task, index=None):
+    def insert_task(self, task, index=None, time=None):
+        if time is not None:
+            index = self.task_count
+            for i in range(self.task_count):
+                t = self._get_task(index=i)
+                if time <= t.finish_time:
+                    index = i
+                    break 
+
         if index is None:
             index = self.task_count
         
@@ -84,15 +94,16 @@ class STN(object):
         
         for i in range(self.task_count):
             cur_task = self._get_task(i)
-            pre_task = self._get_task(i-1)            
-
-            travel_time = self._compute_travel_time(cur_task.location, pre_task.location)
+            pre_task = self._get_task(i-1)        
+          
+            travel_time = int(math.ceil(self._compute_travel_time(cur_task.location, pre_task.location)))
             if cur_task in preconditions:
-                start_time = max(preconditions[cur_task], cur_task.est, pre_task.finish_time + travel_time)
+                start_time = max(preconditions[cur_task], cur_task.est, pre_task.finish_time + travel_time + 1)
             else:
-                start_time = max(cur_task.est, pre_task.finish_time + travel_time)
-            cur_task.start_time = start_time if start_time <= cur_task.lst else float('inf')   
-            cur_task.finish_time = cur_task.start_time + cur_task.duration
+                start_time = max(cur_task.est, pre_task.finish_time + travel_time + 1)
+
+            cur_task.start_time = start_time if start_time <= cur_task.lst else float('inf')  
+            cur_task.finish_time = cur_task.start_time + cur_task.duration - 1
 
     def get_makespan(self):
         if self.task_count <= 0:
@@ -111,11 +122,24 @@ class STN(object):
         self._add_temporal_constraint(zero_node_id, end_node_id, task.lft, task.eft)
 
     def get_all_tasks(self):
-        all_tasks = set()
+        all_tasks = []
         for i in range(self.task_count):
-            all_tasks.add(self._get_task(i))
+            all_tasks.append(self._get_task(i))
         
         return all_tasks
+
+    def to_bit_arr(self):
+        bit_arr = bitarray()
+        for i in range(self.task_count):
+            prev_task = self._get_task(i-1)
+            task = self._get_task(i)
+            tt = int(math.ceil(self._compute_travel_time(prev_task.location, task.location)))
+            bit_arr.extend([1] * tt)
+            arrival_time = prev_task.finish_time + tt            
+            idle_time = task.start_time - arrival_time - 1
+            bit_arr.extend([0] * idle_time)
+            bit_arr.extend([1] * task.duration)
+        return bit_arr
 
     def _get_node(self, index=None, task_id=None, _type=None):
         result = None

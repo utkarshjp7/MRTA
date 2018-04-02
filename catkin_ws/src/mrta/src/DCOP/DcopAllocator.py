@@ -5,6 +5,8 @@ import os
 from itertools import product
 from copy import deepcopy
 import random
+from bitarray import bitarray
+import utils
 
 cur_dir = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(os.path.abspath(cur_dir + "/.."))
@@ -63,7 +65,7 @@ class DcopAllocator:
                 for task in cur_tasks:
                     self.logger.debug(str(task))
 
-                dcop = self.create_dcop(cur_tasks, robots, is_hetero)                                 
+                dcop = self.create_dcop(deepcopy(cur_tasks), robots, is_hetero)                                 
                 self.logger.debug("Dcop created. Now solving dcop.")
                 self.logger.debug("Cost Table: {0}".format(str(self._cost_table)))
                 
@@ -92,12 +94,13 @@ class DcopAllocator:
                     if task_id > 0: 
                         robot_ids = [r for r,t in results.iteritems() if t == task_id]
                         if not self._collab:
-                            robot_ids = [robot_ids[-1]]
+                            robot_ids = [robot_ids[-1]]                    
                         
                         for robot_id in robot_ids:
                             self.logger.debug("Task {0} has been assigned to robot {1}".format(task_id, robot_id))
                             robot = [robot for robot in robots if robot.id == robot_id][0]
-                            scheduled_task = [task for task in cur_tasks if task.id == task_id][0]
+                            scheduled_task = [task for task in cur_tasks if task.id == task_id][0]                            
+                            scheduled_task.change_duration(scheduled_task.duration / len(robot_ids))
                             pos = self._cost_table[scheduled_task.id][robot.id][1]
                             self.logger.debug("Adding task {0} to robot {1}'s STN at position {2}".format(task_id, robot_id, pos))
                             robot.add_task(scheduled_task, pos, self._tasks_preconditions)
@@ -111,12 +114,13 @@ class DcopAllocator:
                 if self._tighten_schedule:
                     tasks = robot.tighten_schedule()                                       
                 else:                    
-                    tasks = robot.stn.get_all_tasks()
+                    tasks = set(robot.stn.get_all_tasks())
 
                 self._p_graph.update_tasks(tasks)
                 self.logger.debug("Robot {0}: Makespan is {1}".format(robot.id, robot.stn.get_makespan()))
                 self.logger.debug("\nRobot {0}: Schedule:\n {1}\n".format(robot.id, str(robot.stn)))
             
+            #at this point all tasks in the batch have been processed.
             for task in batch:                
                 self.logger.debug("Updating precedence graph for task {0}".format(task.id))
                 pc = self._p_graph.update(task)  
@@ -183,9 +187,10 @@ class DcopAllocator:
                 func_id = function.function_id                                  
                 all_values = list(product(*[(func_id, -func_id)] * size))          
                 
+                task = [t for t in tasks if t.id == function.function_id][0]                 
                 for values in all_values:
-                    func_args = [NodeArgument(v) for v in values]                                                                                        
-                    utility = self._calc_function_utility(function, func_args)
+                    func_args = [NodeArgument(v) for v in values]                                                                                                           
+                    utility = self._calc_function_utility(function, func_args, deepcopy(task), robots)
                     function.getFunction().addParametersCost(func_args, utility)
                     
         if len(variables) == 0:            
@@ -194,31 +199,62 @@ class DcopAllocator:
         dcop = COP_Instance(variables, list(functions.values()), agents)
         return dcop
 
-    def _calc_function_utility(self, function, func_args):
-        robot_cost_arr = []
-        i = 0
+    def _calc_function_utility(self, function, func_args, task, robots):
+        part_robots = [] #participant robots
 
+        i = 0
         func_id = function.function_id
         while i < len(func_args):             
             if func_args[i].value == func_id:
-                robot_variable = function.params[i]
-                robot_cost = self._cost_table[func_id][robot_variable.id_var][0]
-                robot_cost_arr.append(robot_cost)
-            i += 1
+                var = function.params[i]
+                robot = [robot for robot in robots if robot.id == var.id_var][0]
+                part_robots.append(robot)                
+            i += 1        
 
-        function_utility = -10000000
+        function_utility = utils.NEG_INF
 
-        num_of_robots = len(robot_cost_arr)
-        if self._collab:
-            if num_of_robots > 0:
-                total_cost = self._calc_combined_cost(robot_cost_arr)
-                function_utility = math.log(total_cost)
-        elif num_of_robots == 1:
-                total_cost = self._calc_combined_cost(robot_cost_arr)
-                function_utility = total_cost
+        num_of_robots = len(part_robots)
+        
+        if num_of_robots == 1:
+            robot_id = part_robots[0].id
+            function_utility = self._cost_table[func_id][robot_id][0]        
+        elif self._collab and num_of_robots > 1:            
+            total_cost = self._calc_coalition_cost(part_robots, task)
+            if total_cost != utils.NEG_INF:
+                function_utility = math.log(total_cost)              
 
         return function_utility
 
-    def _calc_combined_cost(self, robot_cost_arr):
-        return sum(robot_cost_arr)/float(len(robot_cost_arr))
+    def _calc_coalition_cost(self, robots, task):
+        bitarrays = []             
+        task_copy = deepcopy(task)
+        task_copy.change_duration(task_copy.duration/len(robots))
 
+        l = task_copy.est - 1
+        if task_copy in self._tasks_preconditions:
+            l = max(l, self._tasks_preconditions[task_copy] - 1)            
+        l = int(math.ceil(l))
+        r = int(math.ceil(task.lft)) 
+
+        for robot in robots:            
+            arr = robot.get_bit_schedule(task_copy)
+            if len(arr) < task_copy.lft:
+                padding = [0] * (task_copy.lft - len(arr))
+                arr.extend(padding)
+            bitarrays.append(arr[l:r])
+
+        combined_cost = utils.NEG_INF
+        i = utils.find_common_gap_in_bit_schedules(bitarrays, task_copy.duration)
+        if i != -1:
+            start_time = l + i + 1        
+            cost_arr = []
+
+            num_of_robots = len(robots)
+            for robot in robots:
+                cost = robot.get_cost(task_copy, self._tasks_preconditions, start_time)  
+                cost_arr.append(cost)
+
+            combined_cost = sum(cost_arr)/float(len(cost_arr))
+        
+        return combined_cost
+        

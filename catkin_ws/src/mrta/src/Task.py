@@ -7,8 +7,8 @@ class Task(object):
         self.start_time = 0
         self.finish_time = 0
         self.est = est
-        self.lst = lft - duration
-        self.eft = est + duration    
+        self.lst = lft - duration + 1
+        self.eft = est + duration - 1    
         self.lft = lft             
         self.duration = duration
         self.location = (pos_x, pos_y)
@@ -35,3 +35,8 @@ class Task(object):
         self.lst = lft - self.duration
         self.eft = est + self.duration    
         self.lft = lft  
+
+    def change_duration(self, duration):
+        self.duration = duration
+        self.lst = self.lft - duration + 1
+        self.eft = self.est + duration - 1  

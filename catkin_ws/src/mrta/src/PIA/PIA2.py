@@ -73,7 +73,7 @@ class PIA(object):
                 if self._tighten_schedule:
                     tasks = robot.tighten_schedule()
                 else:
-                    tasks = robot.stn.get_all_tasks()
+                    tasks = set(robot.stn.get_all_tasks())
                     
                 self.logger.debug("Robot {0}: Makespan is {1}".format(robot.id, robot.stn.get_makespan()))
                 self.logger.debug("\nRobot {0}: Schedule:\n {1}\n".format(robot.id, str(robot.stn)))

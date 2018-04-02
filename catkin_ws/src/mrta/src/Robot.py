@@ -4,6 +4,7 @@ from mrta.msg import AuctionRequest, AuctionAck, Bid, Winner, ScheduledTasks
 from mrta.srv import TerminateRobot, TerminateRobotResponse
 from STN import STN
 from copy import deepcopy
+from BitSchedule import BitSchedule
 
 class Robot():
 
@@ -14,6 +15,7 @@ class Robot():
         self.init_pos = (pos_x, pos_y)
         self.speed = speed
         self.stn = STN(self.init_pos, self.speed)
+        self._bit_schedule = BitSchedule(self.init_pos, self.speed, self.logger)
         
         self._bid_alpha = 0.5  
         self._cost_alpha = 0.5
@@ -179,6 +181,7 @@ class Robot():
         return True
 
     def find_min_cost(self, task, pc):
+        task_copy = deepcopy(task)
         task_count = self.stn.task_count
         min_cost = float("inf")         
         min_pos = None
@@ -187,7 +190,7 @@ class Robot():
             temp_stn = deepcopy(self.stn)
 
             tt_before = temp_stn.total_travel_time
-            temp_stn.insert_task(task, i)
+            temp_stn.insert_task(task_copy, i)
             temp_stn.solve_stn(pc)              
             tt_after = temp_stn.total_travel_time
 
@@ -203,7 +206,33 @@ class Robot():
 
     def add_task(self, task, pos, pc):
         self.stn.insert_task(task, pos)
-        self.stn.solve_stn(pc)
+        self.stn.solve_stn(pc)        
+        self._bit_schedule = BitSchedule(self.init_pos, self.speed, self.logger, stn=self.stn)        
+
+    def get_bit_schedule(self, new_task=None):
+        temp_schedule = deepcopy(self._bit_schedule)
+        if new_task is None:
+            return deepcopy(self._bit_schedule)
+ 
+        temp_schedule.prepare_for_coalition(new_task)               
+        return temp_schedule      
+            
+    def get_cost(self, task, pc, insert_time):
+        cost = utils.NEG_INF
+
+        task_copy = deepcopy(task)
+        stn_copy = deepcopy(self.stn)
+        tt_before = stn_copy.total_travel_time
+        stn_copy.insert_task(task_copy, time=insert_time)
+        stn_copy.solve_stn(pc)              
+        tt_after = stn_copy.total_travel_time
+
+        if stn_copy.is_consistent():
+            addition_travel_time = tt_after - tt_before
+            ms = stn_copy.get_makespan()
+            cost = self._compute_cost(ms, addition_travel_time)
+        
+        return cost 
 
     def _publish_scheduled_tasks(self, tasks):
         scheduled_tasks_msg = ScheduledTasks()
@@ -232,16 +261,16 @@ class Robot():
         min_pos = None
 
         for i in range(task_count + 1):  
-            temp_stn = deepcopy(self.stn)
+            stn_copy = deepcopy(self.stn)
 
-            tt_before = temp_stn.total_travel_time
-            temp_stn.insert_task(task, i)
-            temp_stn.solve_stn(self._tasks_preconditions)              
-            tt_after = temp_stn.total_travel_time
+            tt_before = stn_copy.total_travel_time
+            stn_copy.insert_task(task, i)
+            stn_copy.solve_stn(self._tasks_preconditions)              
+            tt_after = stn_copy.total_travel_time
 
-            if temp_stn.is_consistent():
+            if stn_copy.is_consistent():
                 addition_travel_time = tt_after - tt_before
-                bid = self._compute_bid(temp_stn.get_makespan(), addition_travel_time)
+                bid = self._compute_bid(stn_copy.get_makespan(), addition_travel_time)
                 if bid < min_bid:
                     min_bid = bid
                     min_pos = i
