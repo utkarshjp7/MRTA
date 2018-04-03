@@ -86,6 +86,7 @@ class DcopAllocator:
                     break                                            
 
                 scheduled_tasks = set()
+                unscheduled_tasks = set()
                 task_ids = set(results.values())
 
                 if len([t for t in task_ids if t != 0]) == 0:
@@ -105,7 +106,8 @@ class DcopAllocator:
                         if len(robot_ids) > 1:
                             assert self._collab == True                            
                             if task_id not in self._task_start_times:
-                                self.logger.debug("Task {0} cannot be allocated.".format(task_id))
+                                unscheduled_tasks.add([task for task in cur_tasks if task.id == task_id][0])
+                                self.logger.special("Task {0} cannot be allocated.".format(task_id))
                                 continue                                
                             start_time = self._task_start_times[task_id][tuple(sorted(robot_ids))]
                                                
@@ -122,6 +124,7 @@ class DcopAllocator:
                             scheduled_tasks.add(scheduled_task)        
                                                 
                 cur_tasks = cur_tasks.difference(scheduled_tasks)  #remove scheduled tasks
+                cur_tasks = cur_tasks.difference(unscheduled_tasks)  #remove tasks that can't be allocated
 
             for robot in robots:
                 tasks = set()
