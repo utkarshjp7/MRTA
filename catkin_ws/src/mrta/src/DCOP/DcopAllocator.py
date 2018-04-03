@@ -31,6 +31,7 @@ class DcopAllocator:
     def __init__(self, p_graph, logger, collab=False, tighten_schedule=False, use_prio=False):
         self._p_graph = p_graph
         self._cost_table = {} # { task_id : { robot_id : (cost, stn_pos) } }
+        self._task_start_times = {} # { task.id : { tuple(robot_ids): time } } robot_ids are sorted        
         self.logger = logger
         self._tasks_preconditions = {}
         self._collab = collab
@@ -61,6 +62,7 @@ class DcopAllocator:
             cur_tasks = deepcopy(batch)
             while len(cur_tasks) > 0:
                 self._cost_table = {}
+                self._task_start_times = {}
                 self.logger.debug("Creating dcop for {0} tasks.".format(len(cur_tasks)))
                 for task in cur_tasks:
                     self.logger.debug(str(task))
@@ -89,25 +91,36 @@ class DcopAllocator:
                 if len([t for t in task_ids if t != 0]) == 0:
                     print "All zeros. Should not happen"
                     sys.exit(0)
+                
+                self.logger.debug("Dcop results")
+                self.logger.debug(results)
 
                 for task_id in task_ids:
                     if task_id > 0: 
                         robot_ids = [r for r,t in results.iteritems() if t == task_id]
-                        if not self._collab:
-                            robot_ids = [robot_ids[-1]]                    
-                        
-                        scheduled_task = [task for task in cur_tasks if task.id == task_id][0]                            
+                        scheduled_task = [task for task in cur_tasks if task.id == task_id][0]
                         scheduled_task.change_duration(scheduled_task.duration / len(robot_ids))
-
-                        for robot_id in robot_ids:
+                        start_time = None
+                        
+                        if len(robot_ids) > 1:
+                            assert self._collab == True                            
+                            if task_id not in self._task_start_times:
+                                self.logger.debug("Task {0} cannot be allocated.".format(task_id))
+                                continue                                
+                            start_time = self._task_start_times[task_id][tuple(sorted(robot_ids))]
+                                               
+                        for robot_id in robot_ids:                                         
                             self.logger.debug("Task {0} has been assigned to robot {1}".format(task_id, robot_id))
-                            robot = [robot for robot in robots if robot.id == robot_id][0]
-                            pos = self._cost_table[scheduled_task.id][robot.id][1]
-                            self.logger.debug("Adding task {0} to robot {1}'s STN at position {2}".format(task_id, robot_id, pos))
-                            robot.add_task(deepcopy(scheduled_task), pos, self._tasks_preconditions)
+                            robot = [robot for robot in robots if robot.id == robot_id][0]  
+                            pos = self._cost_table[scheduled_task.id][robot.id][1]                                                            
+                            if start_time is None:
+                                self.logger.debug("Adding task {0} to robot {1}'s STN at position {2}".format(task_id, robot_id, pos))
+                                robot.add_task(deepcopy(scheduled_task), self._tasks_preconditions, pos=pos)
+                            else:
+                                robot.add_task(deepcopy(scheduled_task), self._tasks_preconditions, time=start_time)                                                        
                             self.logger.debug("Task has been added.")
-                            scheduled_tasks.add(scheduled_task)
-                
+                            scheduled_tasks.add(scheduled_task)        
+                                                
                 cur_tasks = cur_tasks.difference(scheduled_tasks)  #remove scheduled tasks
 
             for robot in robots:
@@ -213,17 +226,20 @@ class DcopAllocator:
             i += 1        
 
         function_utility = utils.NEG_INF
-
         num_of_robots = len(part_robots)
+        part_robot_ids = tuple(sorted([robot.id for robot in part_robots]))
         
         if num_of_robots == 1:
             robot_id = part_robots[0].id
             function_utility = self._cost_table[func_id][robot_id][0]        
         elif self._collab and num_of_robots > 1:            
-            total_cost = self._calc_coalition_cost(part_robots, task)
+            total_cost, start_time = self._calc_coalition_cost(part_robots, task)
             if total_cost != utils.NEG_INF:
-                function_utility = math.log(total_cost)              
-
+                function_utility = math.log(total_cost)                
+                if task.id not in self._task_start_times:    
+                    self._task_start_times[task.id] = {}        
+                self._task_start_times[task.id][part_robot_ids] = start_time
+                    
         return function_utility
 
     def _calc_coalition_cost(self, robots, task):
@@ -245,10 +261,11 @@ class DcopAllocator:
             bitarrays.append(arr[l:r])
 
         coalition_cost = utils.NEG_INF
-        
+        start_time = -1
+
         i = utils.find_common_gap_in_bit_schedules(bitarrays, task_copy.duration)
         if i != -1:
-            start_time = l + i + 1        
+            start_time = l + i + 1                  
             cost_arr = []
 
             num_of_robots = len(robots)
@@ -257,5 +274,5 @@ class DcopAllocator:
                 cost_arr.append(cost)
             coalition_cost = sum(cost_arr)/float(len(cost_arr))
         
-        return coalition_cost
+        return coalition_cost, start_time
         

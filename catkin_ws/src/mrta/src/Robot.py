@@ -204,8 +204,16 @@ class Robot():
 
         return min_cost, min_pos
 
-    def add_task(self, task, pos, pc):
-        self.stn.insert_task(task, pos)
+    def add_task(self, task, pc, pos=None, time=None):
+        if (pos is None) and (time is None):
+            self.logger("Robot {0} ADD TASK: Either pos or time needs to be given, not both.".format(self.id))
+            return
+
+        if time is not None:
+            self.stn.insert_task(task, time=time)
+        else:
+            self.stn.insert_task(task, index=pos)
+
         self.stn.solve_stn(pc)        
         self._bit_schedule = BitSchedule(self.init_pos, self.speed, self.logger, stn=self.stn)        
 
