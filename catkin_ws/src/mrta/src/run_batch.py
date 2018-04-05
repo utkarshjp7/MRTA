@@ -144,12 +144,12 @@ if __name__ == "__main__":
         help='Number of precedence graphs',
         dest='num_of_pgraphs',
         type=int,
-        default=5,
+        default=10,
         action='store')
 
     robot_count_arr = [2, 4, 8]
     task_count_arr = [5, 10, 20, 30]
-    alpha_arr = [0.25, 0.5, 0.75] 
+    alpha_arr = [0.1, 0.25, 0.5, 0.75] 
     beta_arr = [0.25, 0.5, 0.75]
     map_x = 100
     map_y = 100
@@ -198,22 +198,22 @@ if __name__ == "__main__":
                     else:
                         p_graphs = pgraph_data[task_count][beta]
                     
-                    for p_graph in p_graphs:
-			                            
+                    for p_graph in p_graphs:			                            
+                                                
                         dcop_robots = deepcopy(ori_robots)
                         for robot in dcop_robots:
                             robot.set_alpha(alpha)     
-                        dcop = DcopAllocator(deepcopy(p_graph), logger, collab=False)                    
+                        dcop = DcopAllocator(deepcopy(p_graph), logger, alpha, collab=False)                    
                         dcop_schedules = dcop.allocate(dcop_robots)
                         all_schedules1.append(dcop_schedules)     
-                                                
-			            pia_robots = deepcopy(ori_robots)
+                        
+                        pia_robots = deepcopy(ori_robots)
                         for robot in pia_robots:
                             robot.set_alpha(alpha)   
                         pia = PIA(deepcopy(p_graph), pia_robots, logger)
                         pia_schedules = pia.allocate_tasks()
-                        all_schedules2.append(pia_schedules)   
+                        all_schedules2.append(pia_schedules)                           
 
-                    log_results(all_schedules1, all_schedules2, beta, alpha, task_count, robot_count, num_of_pgraphs, "040118")                                                  
+                    log_results(all_schedules1, all_schedules2, beta, alpha, task_count, robot_count, num_of_pgraphs, "040418")                                                  
                     print("-------------------------------------------------------------\n")
     

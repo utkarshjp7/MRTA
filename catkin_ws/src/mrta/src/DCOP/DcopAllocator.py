@@ -28,7 +28,7 @@ from MaxSum import MaxSum
 
 class DcopAllocator:
 
-    def __init__(self, p_graph, logger, collab=False, tighten_schedule=False, use_prio=False):
+    def __init__(self, p_graph, logger, alpha, collab=False, tighten_schedule=False, use_prio=False):
         self._p_graph = p_graph
         self._cost_table = {} # { task_id : { robot_id : (cost, stn_pos) } }
         self._task_start_times = {} # { task.id : { tuple(robot_ids): time } } robot_ids are sorted        
@@ -37,6 +37,7 @@ class DcopAllocator:
         self._collab = collab
         self._tighten_schedule = tighten_schedule 
         self._use_prio = use_prio
+        self._alpha = alpha
 
     def allocate(self, robots, is_hetero=False):        
         n = self._p_graph.size()
@@ -98,18 +99,18 @@ class DcopAllocator:
 
                 for task_id in task_ids:
                     if task_id > 0: 
-                        robot_ids = [r for r,t in results.iteritems() if t == task_id]
+                        robot_ids = tuple(sorted([r for r,t in results.iteritems() if t == task_id]))
                         scheduled_task = [task for task in cur_tasks if task.id == task_id][0]
                         scheduled_task.change_duration(scheduled_task.duration / len(robot_ids))
                         start_time = None
                         
                         if len(robot_ids) > 1:
                             assert self._collab == True                            
-                            if task_id not in self._task_start_times:
+                            if task_id not in self._task_start_times or robot_ids not in self._task_start_times[task_id]:
                                 unscheduled_tasks.add([task for task in cur_tasks if task.id == task_id][0])
                                 self.logger.special("Task {0} cannot be allocated.".format(task_id))
-                                continue                                
-                            start_time = self._task_start_times[task_id][tuple(sorted(robot_ids))]
+                                continue      
+                            start_time = self._task_start_times[task_id][robot_ids]
                                                
                         for robot_id in robot_ids:                                         
                             self.logger.debug("Task {0} has been assigned to robot {1}".format(task_id, robot_id))
@@ -177,7 +178,7 @@ class DcopAllocator:
                 if is_hetero and not robot.is_capable(task):
                     continue
 
-                min_cost, min_pos = robot.find_min_cost(task, self._tasks_preconditions)
+                min_cost, min_pos = robot.get_best_cost(task, self._tasks_preconditions)
                 if task.id in self._cost_table:
                     self._cost_table[task.id][robot.id] = (1/min_cost, min_pos)
                 else:
@@ -237,7 +238,7 @@ class DcopAllocator:
             function_utility = self._cost_table[func_id][robot_id][0]        
         elif self._collab and num_of_robots > 1:            
             total_cost, start_time = self._calc_coalition_cost(part_robots, task)
-            if total_cost != utils.NEG_INF:
+            if total_cost > 0:
                 function_utility = math.log(total_cost)                
                 if task.id not in self._task_start_times:    
                     self._task_start_times[task.id] = {}        
@@ -268,14 +269,19 @@ class DcopAllocator:
 
         i = utils.find_common_gap_in_bit_schedules(bitarrays, task_copy.duration)
         if i != -1:
-            start_time = l + i + 1                  
-            cost_arr = []
+            start_time = l + i + 1        
+            max_ms = utils.NEG_INF
+            total_tt = 0
 
             num_of_robots = len(robots)
             for robot in robots:
-                cost = robot.get_cost(task_copy, self._tasks_preconditions, start_time)  
-                cost_arr.append(cost)
-            coalition_cost = sum(cost_arr)/float(len(cost_arr))
+                ms, tt = robot.get_ms_tt(task_copy, self._tasks_preconditions, start_time)
+                if ms != None and tt != None:  
+                    max_ms = max(ms, max_ms)
+                    total_tt += tt
+
+            if max_ms != utils.NEG_INF and total_tt != 0:                
+                coalition_cost = utils.compute_task_cost(max_ms, total_tt, self._alpha)
         
         return coalition_cost, start_time
         

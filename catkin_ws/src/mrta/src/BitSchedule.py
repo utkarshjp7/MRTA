@@ -38,36 +38,29 @@ class BitSchedule():
             prev_task = self._tasks[i]
             next_task = None
 
+            r_max = float("inf")
             if i < self.task_count:
                 next_task = self._tasks[i + 1]
-            
-            limit = float("inf")
+                r_max = next_task.start_time
+                        
             if next_task is not None:
-                #remove old travel time
-                #print("clearing schedule between finish time of task {0} and start time of task {1}".format(prev_task.id, next_task.id))                
+                #remove old travel time              
                 l = prev_task.finish_time
                 r = next_task.start_time - 1
-                self._modify_bit_arr(l, r, 0)
-                limit = next_task.start_time              
-                #print(str(self._bit_arr))
+                self._modify_bit_arr(l, r, 0)                              
 
             #add travel time from prev task to new task        
             tt = utils.compute_travel_time(prev_task.location, task.location, self._robot_speed)
             l = prev_task.finish_time
-            r = min(l + tt, limit)       
-            #print("Addind time travel from {0} to {1}".format(prev_task.id, task.id))     
+            r = min(l + tt, r_max)          
             self._modify_bit_arr(l, r, 1)
-            #print(str(self._bit_arr))
 
             if next_task is not None:
                 #add travel time from new task to next task
                 tt = utils.compute_travel_time(task.location, next_task.location, self._robot_speed)
                 l = next_task.start_time - tt - 1
                 r = next_task.start_time - 1
-                #print("Adding time travel from {0} to {1}".format(task.id, next_task.id))
                 self._modify_bit_arr(l, r, 1)
-                #print(str(self._bit_arr))
-
 
     def _modify_bit_arr(self, from_idx, to_idx, bit):
         from_idx = int(math.ceil(from_idx))

@@ -178,31 +178,56 @@ class Robot():
         if task.type not in self._capability:
             return False        
 
-        return True
+        return True    
 
-    def find_min_cost(self, task, pc):
-        task_copy = deepcopy(task)
+    def get_best_cost(self, task, pc):        
         task_count = self.stn.task_count
         min_cost = float("inf")         
         min_pos = None
         
         for i in range(task_count + 1):   
-            temp_stn = deepcopy(self.stn)
+            task_copy = deepcopy(task)
+            stn_copy = deepcopy(self.stn)
+            tt_before = stn_copy.total_travel_time
+            stn_copy.insert_task(task_copy, i)
+            stn_copy.solve_stn(pc)              
+            tt_after = stn_copy.total_travel_time
 
-            tt_before = temp_stn.total_travel_time
-            temp_stn.insert_task(task_copy, i)
-            temp_stn.solve_stn(pc)              
-            tt_after = temp_stn.total_travel_time
-
-            if temp_stn.is_consistent():
+            if stn_copy.is_consistent():
                 addition_travel_time = tt_after - tt_before
-                ms = temp_stn.get_makespan()
+                ms = stn_copy.get_makespan()
                 cost = self._compute_cost(ms, addition_travel_time)
                 if cost < min_cost:
                     min_cost = cost
                     min_pos = i       
 
         return min_cost, min_pos
+
+    def get_ms_tt(self, task, pc, insert_time):
+        ms = None
+        addition_travel_time = None
+
+        task_copy = deepcopy(task)
+        stn_copy = deepcopy(self.stn)
+        tt_before = stn_copy.total_travel_time
+        stn_copy.insert_task(task_copy, time=insert_time)
+        stn_copy.solve_stn(pc)              
+        tt_after = stn_copy.total_travel_time
+
+        if stn_copy.is_consistent():
+            addition_travel_time = tt_after - tt_before
+            ms = stn_copy.get_makespan()
+        
+        return (ms, addition_travel_time)
+
+    def get_cost(self, task, pc, insert_time):
+        cost = None
+        ms, tt = get_ms_tt(task, pc, insert_time)
+
+        if ms != None and tt != None:
+            cost = self._compute_cost(ms, tt)
+        
+        return cost 
 
     def add_task(self, task, pc, pos=None, time=None):
         if (pos is None) and (time is None):
@@ -218,29 +243,12 @@ class Robot():
         self._bit_schedule = BitSchedule(self.init_pos, self.speed, self.logger, stn=self.stn)        
 
     def get_bit_schedule(self, new_task=None):
-        temp_schedule = deepcopy(self._bit_schedule)
+        schedule_copy = deepcopy(self._bit_schedule)
         if new_task is None:
-            return deepcopy(self._bit_schedule)
+            return schedule_copy
  
-        temp_schedule.prepare_for_coalition(new_task)               
-        return temp_schedule      
-            
-    def get_cost(self, task, pc, insert_time):
-        cost = utils.NEG_INF
-
-        task_copy = deepcopy(task)
-        stn_copy = deepcopy(self.stn)
-        tt_before = stn_copy.total_travel_time
-        stn_copy.insert_task(task_copy, time=insert_time)
-        stn_copy.solve_stn(pc)              
-        tt_after = stn_copy.total_travel_time
-
-        if stn_copy.is_consistent():
-            addition_travel_time = tt_after - tt_before
-            ms = stn_copy.get_makespan()
-            cost = self._compute_cost(ms, addition_travel_time)
-        
-        return cost 
+        schedule_copy.prepare_for_coalition(new_task)               
+        return schedule_copy                  
 
     def _publish_scheduled_tasks(self, tasks):
         scheduled_tasks_msg = ScheduledTasks()

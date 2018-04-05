@@ -120,16 +120,13 @@ def compute_travel_time(pos1, pos2, speed):
 
 def find_common_gap_in_bit_schedules(bitarrays, size):
         arr_len = len(bitarrays[0])
-
         common_time_slot = bitarray([0] * arr_len)        
         for arr in bitarrays:
             common_time_slot = common_time_slot | arr
-        
         common_time_slot = common_time_slot.tolist()
 
         n = 0
-        i = 0
-        
+        i = 0        
         for b in common_time_slot:
             if b == 0:
                 n += 1
@@ -142,3 +139,6 @@ def find_common_gap_in_bit_schedules(bitarrays, size):
             i += 1
 
         return -1
+
+def compute_task_cost(ms, tt, alpha):
+    return ms * alpha + tt * (1 - alpha)
