@@ -118,6 +118,7 @@ def log_results(all_schedules1, all_schedules2, beta, alpha, task_count, robot_c
     if len(all_schedules2) > 0:
         ms2, tt2, st2, it2 = calculate_stats(all_schedules2)
 
+    #print_schedules(all_schedules1, all_schedules2)
     print("Number of tasks scheduled: {0} and {1}".format(st1, st2))
     print("Average makespan: {0} and {1}".format(ms1, ms2))
     print("Average time travelled: {0} and {1}".format(tt1, tt2))              
@@ -135,7 +136,7 @@ def log_results(all_schedules1, all_schedules2, beta, alpha, task_count, robot_c
                         VALUES('{0}', '{1}', '{2}', '{3}', '{4}', '{5}', '{6}', '{7}', '{8}', '{9}', '{10}', '{11}', '{12}', '{13}', '{14}')
                     """.format(robot_count, task_count, num_of_pgraphs, alpha, beta, ms1, tt1, it1, st1, ms2, tt2, it2, st2, datetime.now(), comment)
 
-    #execute_sql(conn, insert_record)
+    execute_sql(conn, insert_record)
 
 if __name__ == "__main__":    
     parser = argparse.ArgumentParser(description="MRTA Algorithms")
@@ -206,13 +207,13 @@ if __name__ == "__main__":
                         dcop = DcopAllocator(deepcopy(p_graph), logger, alpha, collab=False)                    
                         dcop_schedules = dcop.allocate(dcop_robots)
                         all_schedules1.append(dcop_schedules)     
-                        
+
                         pia_robots = deepcopy(ori_robots)
                         for robot in pia_robots:
                             robot.set_alpha(alpha)   
                         pia = PIA(deepcopy(p_graph), pia_robots, logger)
                         pia_schedules = pia.allocate_tasks()
-                        all_schedules2.append(pia_schedules)                           
+                        all_schedules2.append(pia_schedules)                          
 
                     log_results(all_schedules1, all_schedules2, beta, alpha, task_count, robot_count, num_of_pgraphs, "040418")                                                  
                     print("-------------------------------------------------------------\n")
