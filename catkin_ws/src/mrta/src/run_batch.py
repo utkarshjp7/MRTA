@@ -170,17 +170,22 @@ if __name__ == "__main__":
     if os.path.isfile(pgraph_data_file):
         pgraph_data = pickle.load(open(pgraph_data_file))
 
-    for robot_count in robot_count_arr:
-        if robots_data is None:
-            ori_robots = dg.generate_robots(robot_count, 1)
+    for task_count in task_count_arr:
+        max_possible_edges = (task_count * (task_count - 1))/2
+        max_num_of_edges = min(3 * task_count, max_possible_edges)            
+        tasks = dg.generate_tasks(task_count)
+    
+        if pgraph_data is None:
+            p_graphs = dg.generate_pgraphs(deepcopy(tasks), num_of_pgraphs, max_num_of_edges)
         else:
-            ori_robots = robots_data[robot_count]
+            p_graphs = pgraph_data[task_count]
+  
+        for robot_count in robot_count_arr:
+            if robots_data is None:
+                ori_robots = dg.generate_robots(robot_count, 1)
+            else:
+                ori_robots = robots_data[robot_count]
         
-        for task_count in task_count_arr:
-            max_possible_edges = (task_count * (task_count - 1))/2
-            max_num_of_edges = min(3 * task_count, max_possible_edges)            
-            tasks = dg.generate_tasks(task_count)
-            
             for alpha in alpha_arr:
                 for beta in beta_arr:
                     all_schedules1 = []
@@ -193,18 +198,14 @@ if __name__ == "__main__":
                     print("Total Tasks: {0}".format(num_of_pgraphs * task_count))
                     print("Alpha: {0}".format(alpha))
                     print("Beta: {0}".format(beta))
-                    
-                    if pgraph_data is None:
-                        p_graphs = dg.generate_pgraphs(deepcopy(tasks), num_of_pgraphs, max_num_of_edges, beta)
-                    else:
-                        p_graphs = pgraph_data[task_count][beta]
-                    
-                    for p_graph in p_graphs:			                            
-                                                
+                
+                    for p_graph in p_graphs:
+                        p_graph.calc_all_priorities(beta)
+                        
                         dcop_robots = deepcopy(ori_robots)
                         for robot in dcop_robots:
                             robot.set_alpha(alpha)     
-                        dcop = DcopAllocator(deepcopy(p_graph), logger, alpha, collab=False)                    
+                        dcop = DcopAllocator(deepcopy(p_graph), logger, alpha, collab=False)      
                         dcop_schedules = dcop.allocate(dcop_robots)
                         all_schedules1.append(dcop_schedules)     
 
@@ -213,8 +214,8 @@ if __name__ == "__main__":
                             robot.set_alpha(alpha)   
                         pia = PIA(deepcopy(p_graph), pia_robots, logger)
                         pia_schedules = pia.allocate_tasks()
-                        all_schedules2.append(pia_schedules)                          
+                        all_schedules2.append(pia_schedules)        
 
-                    log_results(all_schedules1, all_schedules2, beta, alpha, task_count, robot_count, num_of_pgraphs, "040418")                                                  
+                    log_results(all_schedules1, all_schedules2, beta, alpha, task_count, robot_count, num_of_pgraphs, "040418_dcop")                                                  
                     print("-------------------------------------------------------------\n")
     

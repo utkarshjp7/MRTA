@@ -55,8 +55,8 @@ class DataGenerator:
             locations.append((pos_x, pos_y))
         return locations
 
-    def generate_pgraph(self, tasks, max_num_of_edges, beta):
-        p_graph = PrecedenceGraph(tasks, beta)
+    def generate_pgraph(self, tasks, max_num_of_edges):
+        p_graph = PrecedenceGraph(tasks)
         min_num_of_edges = len(tasks) / 2
         num_of_edges = min_num_of_edges
 
@@ -77,14 +77,13 @@ class DataGenerator:
                         i += 1
         
         p_graph.build_graph()
-        p_graph.calc_all_priorities()
         return p_graph
 
-    def generate_pgraphs(self, tasks, num_of_pgraphs, max_num_of_edges, beta):
+    def generate_pgraphs(self, tasks, num_of_pgraphs, max_num_of_edges):
         p_graphs = []    
 
         for i in range(num_of_pgraphs):
-            p_graph = self.generate_pgraph(tasks, max_num_of_edges, beta)
+            p_graph = self.generate_pgraph(tasks, max_num_of_edges)
             p_graphs.append(p_graph)
 
         return p_graphs  
@@ -136,10 +135,9 @@ if __name__ == "__main__":
     map_x = args.map_x
     map_y = args.map_y
     
-    num_of_pgraphs = 10
+    num_of_pgraphs = 50
     robot_count_arr = [2, 4, 8]
     task_count_arr = [5, 10, 20, 30]     
-    beta_arr = [0.25, 0.5, 0.75]
 
     dg = DataGenerator(map_x, map_y, logger)
     robots = { }
@@ -152,8 +150,7 @@ if __name__ == "__main__":
         tasks = dg.generate_tasks(task_count)
         max_possible_edges = (task_count * (task_count - 1))/2
         max_num_of_edges = min(3 * task_count, max_possible_edges)
-        for beta in beta_arr:
-            p_graphs[task_count][beta] = dg.generate_pgraphs(tasks, num_of_pgraphs, max_num_of_edges, beta)
+        p_graphs[task_count] = dg.generate_pgraphs(tasks, num_of_pgraphs, max_num_of_edges)
 
     pickle.dump(robots, open('./robots.pickle', 'w'))
     pickle.dump(p_graphs, open('./pgraphs.pickle', 'w'))
