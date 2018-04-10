@@ -239,7 +239,7 @@ class DcopAllocator:
         elif self._collab and num_of_robots > 1:            
             total_cost, start_time = self._calc_coalition_cost(part_robots, task)
             if total_cost > 0:
-                function_utility = math.log(total_cost)                
+                function_utility = 1/total_cost                
                 if task.id not in self._task_start_times:    
                     self._task_start_times[task.id] = {}        
                 self._task_start_times[task.id][part_robot_ids] = start_time
