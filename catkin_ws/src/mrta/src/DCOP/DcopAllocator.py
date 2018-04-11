@@ -37,7 +37,7 @@ class DcopAllocator:
         self._collab = collab
         self._tighten_schedule = tighten_schedule 
         self._use_prio = use_prio
-        self._alpha = alpha
+        self._alpha = alpha 
 
     def allocate(self, robots, is_hetero=False):        
         n = self._p_graph.size()
@@ -247,9 +247,17 @@ class DcopAllocator:
         return function_utility
 
     def _calc_coalition_cost(self, robots, task):
+        coalition_cost = utils.NEG_INF
+        start_time = -1
         bitarrays = []             
         task_copy = deepcopy(task)
-        task_copy.change_duration(task_copy.duration/len(robots))
+        delta = task_copy.duration ** (1./3.) #cube root
+        new_duration = task_copy.duration/len(robots)
+        if len(robots) > 1:
+            if (task_copy.duration/(len(robots)-1) - new_duration) < delta:
+                return coalition_cost, start_time
+
+        task_copy.change_duration(new_duration)
 
         l = task_copy.est - 1
         if task_copy in self._tasks_preconditions:
@@ -264,8 +272,6 @@ class DcopAllocator:
                 arr.extend(padding)
             bitarrays.append(arr[l:r])
 
-        coalition_cost = utils.NEG_INF
-        start_time = -1
 
         i = utils.find_common_gap_in_bit_schedules(bitarrays, task_copy.duration)
         if i != -1:
