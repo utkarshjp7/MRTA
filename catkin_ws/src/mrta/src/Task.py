@@ -32,8 +32,8 @@ class Task(object):
 
     def update_time_window(self, est, lft):
         self.est = est
-        self.lst = lft - self.duration
-        self.eft = est + self.duration    
+        self.lst = lft - self.duration + 1
+        self.eft = est + self.duration - 1    
         self.lft = lft  
 
     def change_duration(self, duration):
